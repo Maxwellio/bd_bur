@@ -1,0 +1,57 @@
+--Table: burnar.doljtostruct
+
+--DROP TABLE burnar.doljtostruct;
+
+CREATE TABLE burnar.doljtostruct (
+  "key"     integer NOT NULL PRIMARY KEY,
+  doljnost  integer NOT NULL,
+  org       integer NOT NULL,
+  boss      integer,
+  /* Keys */
+  CONSTRAINT pk_key2
+    PRIMARY KEY ("key"), 
+  CONSTRAINT uk_dolgstru
+    UNIQUE (doljnost, org),
+  /* Foreign keys */
+  CONSTRAINT fk_boss
+    FOREIGN KEY (boss)
+    REFERENCES burnar.doljtostruct("key"), 
+  CONSTRAINT fk_dolj
+    FOREIGN KEY (doljnost)
+    REFERENCES burnar.sprdoljnost("key"), 
+  CONSTRAINT fk_org2
+    FOREIGN KEY (org)
+    REFERENCES burnar.org_stru(id)
+);
+
+CREATE TRIGGER trg_doljtostruct_ins_before
+  BEFORE INSERT
+  ON burnar.doljtostruct
+  FOR EACH ROW
+  EXECUTE PROCEDURE burnar.ftrg_doljtostruct_ins_before();
+
+ALTER TABLE burnar.doljtostruct
+  OWNER TO postgres;
+
+COMMENT ON TABLE burnar.doljtostruct
+  IS 'Должности и подчинения по структуркам';
+
+COMMENT ON COLUMN burnar.doljtostruct."key"
+  IS 'код=должность-структурка';
+
+COMMENT ON COLUMN burnar.doljtostruct.doljnost
+  IS 'код должности';
+
+COMMENT ON COLUMN burnar.doljtostruct.org
+  IS 'код структурки';
+
+COMMENT ON COLUMN burnar.doljtostruct.boss
+  IS 'непосредственное подчинение';
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER, TRUNCATE
+  ON burnar.doljtostruct
+TO postgres;
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER, TRUNCATE
+  ON burnar.doljtostruct
+TO burnar_role;
