@@ -1,0 +1,70 @@
+--Table: burnar.karjera
+
+--DROP TABLE burnar.karjera;
+
+CREATE TABLE burnar.karjera (
+  idpeople    integer NOT NULL,
+  dtenter     timestamp without time zone NOT NULL,
+  dtout       timestamp without time zone NOT NULL,
+  doljinstru  integer NOT NULL,
+  "key"       integer NOT NULL,
+  /* Keys */
+  CONSTRAINT pk_keyid
+    PRIMARY KEY ("key"),
+  /* Foreign keys */
+  CONSTRAINT fk_doljnost
+    FOREIGN KEY (doljinstru)
+    REFERENCES burnar.doljtostruct("key"), 
+  CONSTRAINT fk_people11
+    FOREIGN KEY (idpeople)
+    REFERENCES burnar.people(id)
+);
+
+CREATE INDEX nk_karjera
+  ON burnar.karjera
+  (idpeople, doljinstru);
+
+CREATE INDEX nk_karjera1
+  ON burnar.karjera
+  (idpeople, doljinstru, dtenter, dtout);
+
+CREATE TRIGGER trg_karjera_ins_before
+  BEFORE INSERT
+  ON burnar.karjera
+  FOR EACH ROW
+  EXECUTE PROCEDURE burnar.ftrg_karjera_ins_before();
+
+CREATE TRIGGER trg_karjera_upd_before
+  BEFORE UPDATE
+  ON burnar.karjera
+  FOR EACH ROW
+  EXECUTE PROCEDURE burnar.ftrg_karjera_upd_before();
+
+ALTER TABLE burnar.karjera
+  OWNER TO postgres;
+
+COMMENT ON TABLE burnar.karjera
+  IS 'Карьерное движение людей';
+
+COMMENT ON COLUMN burnar.karjera.idpeople
+  IS 'человек';
+
+COMMENT ON COLUMN burnar.karjera.dtenter
+  IS 'вступил в должность';
+
+COMMENT ON COLUMN burnar.karjera.dtout
+  IS 'вышел из должности';
+
+COMMENT ON COLUMN burnar.karjera.doljinstru
+  IS 'код должности в структурке';
+
+COMMENT ON COLUMN burnar.karjera."key"
+  IS 'код';
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER, TRUNCATE
+  ON burnar.karjera
+TO postgres;
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER, TRUNCATE
+  ON burnar.karjera
+TO burnar_role;
