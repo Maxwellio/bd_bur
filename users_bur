@@ -1,0 +1,72 @@
+--Table: burnar.users
+
+--DROP TABLE burnar.users;
+
+CREATE TABLE burnar.users (
+  users_id    integer NOT NULL PRIMARY KEY,
+  ora_name    varchar(100) NOT NULL,
+  people_id   integer NOT NULL,
+  active      numeric,
+  note        varchar(250),
+  dtenter     date,
+  dtout       date,
+  "password"  varchar,
+  created     timestamp without time zone,
+  /* Keys */
+  CONSTRAINT pk_key1
+    PRIMARY KEY (users_id), 
+  CONSTRAINT uk_users_oraname_field
+    UNIQUE (ora_name),
+  /* Foreign keys */
+  CONSTRAINT fk_users_peopleid
+    FOREIGN KEY (people_id)
+    REFERENCES burnar.people(id)
+);
+
+CREATE INDEX nk_users
+  ON burnar.users
+  (people_id, ora_name);
+
+CREATE TRIGGER trg_users
+  BEFORE INSERT
+  ON burnar.users
+  FOR EACH ROW
+  EXECUTE PROCEDURE burnar.ftrg_users();
+
+ALTER TABLE burnar.users
+  OWNER TO postgres;
+
+COMMENT ON TABLE burnar.users
+  IS 'Пользователи системы';
+
+COMMENT ON COLUMN burnar.users.users_id
+  IS 'идентификатор';
+
+COMMENT ON COLUMN burnar.users.ora_name
+  IS 'оракловое имя пользователя';
+
+COMMENT ON COLUMN burnar.users.people_id
+  IS 'код пользователя из PEOPLE';
+
+COMMENT ON COLUMN burnar.users.active
+  IS '1-активный, 0-неактивный';
+
+COMMENT ON COLUMN burnar.users.note
+  IS 'Примечание (Основание подключения/отключения, и прочая информация)';
+
+COMMENT ON COLUMN burnar.users.dtenter
+  IS 'Дата подключения';
+
+COMMENT ON COLUMN burnar.users.dtout
+  IS 'Дата отключения';
+
+COMMENT ON COLUMN burnar.users."password"
+  IS 'пароль';
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER, TRUNCATE
+  ON burnar.users
+TO postgres;
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER, TRUNCATE
+  ON burnar.users
+TO burnar_role;
