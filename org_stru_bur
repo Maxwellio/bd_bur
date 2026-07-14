@@ -1,0 +1,64 @@
+--Table: burnar.org_stru
+
+--DROP TABLE burnar.org_stru;
+
+CREATE TABLE burnar.org_stru (
+  id       integer NOT NULL PRIMARY KEY,
+  parent   integer,
+  nm       varchar(100) NOT NULL,
+  fullnm   varchar(100),
+  sysboss  integer,
+  rep_nm   varchar(100),
+  /* Keys */
+  CONSTRAINT pk_sngstruct
+    PRIMARY KEY (id),
+  /* Foreign keys */
+  CONSTRAINT fk_id
+    FOREIGN KEY (parent)
+    REFERENCES burnar.org_stru(id), 
+  CONSTRAINT fk_sysboss
+    FOREIGN KEY (sysboss)
+    REFERENCES burnar.org_stru(id)
+);
+
+CREATE INDEX nk_org_stru
+  ON burnar.org_stru
+  (sysboss, id);
+
+CREATE INDEX nk_org_stru1
+  ON burnar.org_stru
+  (parent, id);
+
+CREATE INDEX nk_org_stru2
+  ON burnar.org_stru
+  (id, parent);
+
+ALTER TABLE burnar.org_stru
+  OWNER TO postgres;
+
+COMMENT ON TABLE burnar.org_stru
+  IS 'Организации, подразделения СНГ (тип иерархии: "кто в кого входит(принадлежит)")';
+
+COMMENT ON COLUMN burnar.org_stru.nm
+  IS 'короткое наименование';
+
+COMMENT ON COLUMN burnar.org_stru.fullnm
+  IS 'полное наименование';
+
+COMMENT ON COLUMN burnar.org_stru.sysboss
+  IS 'кому подчиняется по доступу в систему';
+
+COMMENT ON COLUMN burnar.org_stru.rep_nm
+  IS 'как выводить в отчет';
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER, TRUNCATE
+  ON burnar.org_stru
+TO postgres;
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER, TRUNCATE
+  ON burnar.org_stru
+TO burnar_role;
+
+GRANT SELECT
+  ON burnar.org_stru
+TO pr_role;
