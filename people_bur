@@ -1,0 +1,53 @@
+--Table: burnar.people
+
+--DROP TABLE burnar.people;
+
+CREATE TABLE burnar.people (
+  id          integer NOT NULL PRIMARY KEY,
+  fio         varchar(255) NOT NULL,
+  codr3       numeric,
+  tabn        numeric(8),
+  fioreports  varchar(100),
+  fiorodpad   varchar(100),
+  /* Keys */
+  CONSTRAINT peolpe_id
+    PRIMARY KEY (id)
+);
+
+CREATE TRIGGER trg_people_ins_before
+  BEFORE INSERT
+  ON burnar.people
+  FOR EACH ROW
+  EXECUTE PROCEDURE burnar.ftrg_people_ins_before();
+
+ALTER TABLE burnar.people
+  OWNER TO postgres;
+
+COMMENT ON TABLE burnar.people
+  IS 'Таблица пользователей,которые не являются пользователями системы';
+
+COMMENT ON COLUMN burnar.people.id
+  IS 'Код';
+
+COMMENT ON COLUMN burnar.people.fio
+  IS 'ФИО';
+
+COMMENT ON COLUMN burnar.people.codr3
+  IS 'Код из системы R3';
+
+COMMENT ON COLUMN burnar.people.tabn
+  IS 'Табельный номер человека';
+
+COMMENT ON COLUMN burnar.people.fioreports
+  IS 'Фамилия и инициалы для вывода в отчеты';
+
+COMMENT ON COLUMN burnar.people.fiorodpad
+  IS 'Фамилия для вывода в отчет в родительном падеже';
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER, TRUNCATE
+  ON burnar.people
+TO postgres;
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER, TRUNCATE
+  ON burnar.people
+TO burnar_role;
