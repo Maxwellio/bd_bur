@@ -1,0 +1,57 @@
+--Table: burnar.znparams
+
+--DROP TABLE burnar.znparams;
+
+CREATE TABLE burnar.znparams (
+  defnar   integer NOT NULL,
+  prnum    numeric(3) NOT NULL,
+  znval    numeric(8),
+  val      numeric(9,3),
+  valstr   varchar(150),
+  parcode  numeric(8) NOT NULL,
+  /* Keys */
+  CONSTRAINT pk_znparams
+    PRIMARY KEY (defnar, parcode, prnum)
+);
+
+CREATE TRIGGER trg_znparams_upd_after
+  AFTER UPDATE
+  ON burnar.znparams
+  FOR EACH ROW
+  EXECUTE PROCEDURE burnar.ftrg_znparams_upd_after();
+
+ALTER TABLE burnar.znparams
+  OWNER TO postgres;
+
+COMMENT ON TABLE burnar.znparams
+  IS 'значения глобальных параметров наряда в целом';
+
+COMMENT ON COLUMN burnar.znparams.defnar
+  IS 'код наряда';
+
+COMMENT ON COLUMN burnar.znparams.prnum
+  IS 'порядок';
+
+COMMENT ON COLUMN burnar.znparams.znval
+  IS 'значение дискретное (из общего справочника)';
+
+COMMENT ON COLUMN burnar.znparams.val
+  IS 'значение непрерывной величины';
+
+COMMENT ON COLUMN burnar.znparams.valstr
+  IS 'произвольное строковое значение';
+
+COMMENT ON COLUMN burnar.znparams.parcode
+  IS 'код параметра';
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER, TRUNCATE
+  ON burnar.znparams
+TO postgres;
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER, TRUNCATE
+  ON burnar.znparams
+TO burnar_role;
+
+GRANT SELECT
+  ON burnar.znparams
+TO out_asubur;
