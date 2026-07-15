@@ -1,0 +1,59 @@
+--Table: burnar.defnarvip
+
+--DROP TABLE burnar.defnarvip;
+
+CREATE TABLE burnar.defnarvip (
+  begdate     timestamp without time zone,
+  enddate     timestamp without time zone,
+  narkey      integer NOT NULL PRIMARY KEY,
+  closed      numeric(1) NOT NULL DEFAULT 0,
+  closeddate  timestamp without time zone,
+  /* Keys */
+  CONSTRAINT pk_narkey2
+    PRIMARY KEY (narkey)
+);
+
+CREATE TRIGGER trg_defnarvip_ins_after
+  AFTER INSERT
+  ON burnar.defnarvip
+  FOR EACH ROW
+  EXECUTE PROCEDURE burnar.ftrg_defnarvip_ins_after();
+
+CREATE TRIGGER trg_defnarvip_upd
+  BEFORE UPDATE
+  ON burnar.defnarvip
+  FOR EACH ROW
+  EXECUTE PROCEDURE burnar.ftrg_defnarvip_upd();
+
+ALTER TABLE burnar.defnarvip
+  OWNER TO postgres;
+
+COMMENT ON TABLE burnar.defnarvip
+  IS 'общие характеристики нарядов в части выполнения (факта)';
+
+COMMENT ON COLUMN burnar.defnarvip.begdate
+  IS 'календарная дата начала наряда по факту';
+
+COMMENT ON COLUMN burnar.defnarvip.enddate
+  IS 'календарная дата окончания наряда по факту';
+
+COMMENT ON COLUMN burnar.defnarvip.narkey
+  IS 'код описателя наряда';
+
+COMMENT ON COLUMN burnar.defnarvip.closed
+  IS 'признак закрытия от изменений 0-открыт,1-закрыт';
+
+COMMENT ON COLUMN burnar.defnarvip.closeddate
+  IS 'дата закрытия от изменений (задается автоматом при closed=1)';
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER, TRUNCATE
+  ON burnar.defnarvip
+TO postgres;
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER, TRUNCATE
+  ON burnar.defnarvip
+TO burnar_role;
+
+GRANT SELECT
+  ON burnar.defnarvip
+TO out_asubur;
