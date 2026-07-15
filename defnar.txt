@@ -1,0 +1,100 @@
+--Table: burnar.defnar
+
+--DROP TABLE burnar.defnar;
+
+CREATE TABLE burnar.defnar (
+  "key"        integer NOT NULL PRIMARY KEY,
+  ownernar     integer NOT NULL,
+  createdate   timestamp without time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  brigadir     integer,
+  narauthor    integer NOT NULL,
+  nartype      integer NOT NULL,
+  shifr        varchar(20),
+  nm           varchar(50),
+  checkparams  numeric,
+  /* Keys */
+  CONSTRAINT pk_defnarkey
+    PRIMARY KEY ("key"),
+  /* Foreign keys */
+  CONSTRAINT fk_aothor
+    FOREIGN KEY (narauthor)
+    REFERENCES burnar.users(users_id), 
+  CONSTRAINT fk_defnar_brigadir
+    FOREIGN KEY (brigadir)
+    REFERENCES burnar.people(id), 
+  CONSTRAINT fk_defnaratrib
+    FOREIGN KEY (nartype)
+    REFERENCES burnar.sprnartype("key"), 
+  CONSTRAINT fk_owner
+    FOREIGN KEY (ownernar)
+    REFERENCES burnar.spr_workers("key")
+);
+
+CREATE TRIGGER trg_defnar_del_after
+  AFTER DELETE
+  ON burnar.defnar
+  FOR EACH ROW
+  EXECUTE PROCEDURE burnar.ftrg_defnar_del_after();
+
+CREATE TRIGGER trg_defnar_ins_after
+  AFTER INSERT
+  ON burnar.defnar
+  FOR EACH ROW
+  EXECUTE PROCEDURE burnar.ftrg_defnar_ins_after();
+
+CREATE TRIGGER trg_defnar_ins_before
+  BEFORE INSERT
+  ON burnar.defnar
+  FOR EACH ROW
+  EXECUTE PROCEDURE burnar.ftrg_defnar_ins_before();
+
+CREATE TRIGGER trg_defnar_upd_after
+  AFTER UPDATE
+  ON burnar.defnar
+  FOR EACH ROW
+  EXECUTE PROCEDURE burnar.ftrg_defnar_upd_after();
+
+ALTER TABLE burnar.defnar
+  OWNER TO postgres;
+
+COMMENT ON TABLE burnar.defnar
+  IS 'Самые общие характеристики наряда в целом';
+
+COMMENT ON COLUMN burnar.defnar."key"
+  IS 'код наряда';
+
+COMMENT ON COLUMN burnar.defnar.ownernar
+  IS 'код главного ресурса(=владельца) наряда (с командиром)';
+
+COMMENT ON COLUMN burnar.defnar.createdate
+  IS 'дата создания наряда (когда создан наряд в системе)';
+
+COMMENT ON COLUMN burnar.defnar.brigadir
+  IS 'сохраненный человек-командир главного ресурса наряда';
+
+COMMENT ON COLUMN burnar.defnar.narauthor
+  IS 'кто создал наряд';
+
+COMMENT ON COLUMN burnar.defnar.nartype
+  IS 'указатель на описатель типа наряда';
+
+COMMENT ON COLUMN burnar.defnar.shifr
+  IS 'шифр наряда';
+
+COMMENT ON COLUMN burnar.defnar.nm
+  IS 'наименование наряда';
+
+COMMENT ON COLUMN burnar.defnar.checkparams
+  IS 'если 1 - то не проверять на изменения глобальных параметров по наряду';
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER, TRUNCATE
+  ON burnar.defnar
+TO postgres;
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER, TRUNCATE
+  ON burnar.defnar
+TO burnar_role;
+
+GRANT SELECT
+  ON burnar.defnar
+TO out_asubur;
