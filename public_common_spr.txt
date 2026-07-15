@@ -1,0 +1,111 @@
+--Table: public.common_spr
+
+--DROP TABLE public.common_spr;
+
+CREATE TABLE public.common_spr (
+  id           numeric NOT NULL PRIMARY KEY,
+  nm           varchar(300) NOT NULL,
+  ops          varchar(300),
+  parent_id    numeric,
+  ord          numeric(3),
+  sysvar       varchar(8),
+  normparorzn  numeric,
+  /* Keys */
+  CONSTRAINT common_spr_pkey
+    PRIMARY KEY (id), 
+  CONSTRAINT common_spr_index02
+    UNIQUE (id, parent_id),
+  /* Foreign keys */
+  CONSTRAINT fk_commonsprid
+    FOREIGN KEY (parent_id)
+    REFERENCES public.common_spr(id)
+    ON DELETE CASCADE
+);
+
+CREATE INDEX nk_sprkey
+  ON public.common_spr
+  (parent_id);
+
+CREATE UNIQUE INDEX uk_common_spr_id
+  ON public.common_spr
+  (id);
+
+CREATE UNIQUE INDEX unq_sprkey
+  ON public.common_spr
+  (parent_id, id);
+
+CREATE TRIGGER trg_common_spr_ins_before
+  BEFORE INSERT
+  ON public.common_spr
+  FOR EACH ROW
+  EXECUTE PROCEDURE public.ftrg_common_spr_ins_before();
+
+ALTER TABLE public.common_spr
+  OWNER TO postgres;
+
+COMMENT ON TABLE public.common_spr
+  IS 'Общие справочники системы';
+
+COMMENT ON COLUMN public.common_spr.parent_id
+  IS 'код родителя';
+
+COMMENT ON COLUMN public.common_spr.ord
+  IS 'очередность внутри уровня';
+
+COMMENT ON COLUMN public.common_spr.sysvar
+  IS 'системная переменная (пока не нужна)';
+
+COMMENT ON COLUMN public.common_spr.normparorzn
+  IS 'связь с нормоорбазующими параметрами и их значениями';
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER, TRUNCATE
+  ON public.common_spr
+TO postgres;
+
+GRANT SELECT
+  ON public.common_spr
+TO exper_light;
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER, TRUNCATE
+  ON public.common_spr
+TO buildrig_role;
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER, TRUNCATE
+  ON public.common_spr
+TO burnar_role;
+
+GRANT SELECT
+  ON public.common_spr
+TO PUBLIC;
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER, TRUNCATE
+  ON public.common_spr
+TO nkrs_role;
+
+GRANT SELECT
+  ON public.common_spr
+TO pr_role;
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER, TRUNCATE
+  ON public.common_spr
+TO osvoenie_role;
+
+GRANT SELECT
+  ON public.common_spr
+TO out_asubur;
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER
+  ON public.common_spr
+TO depnar_role;
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER
+  ON public.common_spr
+TO strapping_role;
+
+GRANT SELECT, INSERT, UPDATE
+  ON public.common_spr
+TO sap_po;
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER
+  ON public.common_spr
+TO calc_role;
