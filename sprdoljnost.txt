@@ -1,0 +1,41 @@
+--Table: burnar.sprdoljnost
+
+--DROP TABLE burnar.sprdoljnost;
+
+CREATE TABLE burnar.sprdoljnost (
+  "key"   integer NOT NULL PRIMARY KEY,
+  nm      varchar(70) NOT NULL,
+  "rank"  numeric(1),
+  /* Keys */
+  CONSTRAINT pk_dolj
+    PRIMARY KEY ("key")
+);
+
+CREATE TRIGGER trg_sprdoljnost_ins_before
+  BEFORE INSERT
+  ON burnar.sprdoljnost
+  FOR EACH ROW
+  EXECUTE PROCEDURE burnar.ftrg_sprdoljnost_ins_before();
+
+ALTER TABLE burnar.sprdoljnost
+  OWNER TO postgres;
+
+COMMENT ON TABLE burnar.sprdoljnost
+  IS 'Справочник должностей';
+
+COMMENT ON COLUMN burnar.sprdoljnost."key"
+  IS 'код должности';
+
+COMMENT ON COLUMN burnar.sprdoljnost.nm
+  IS 'наименование';
+
+COMMENT ON COLUMN burnar.sprdoljnost."rank"
+  IS 'разряд или категория';
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER, TRUNCATE
+  ON burnar.sprdoljnost
+TO postgres;
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER, TRUNCATE
+  ON burnar.sprdoljnost
+TO burnar_role;
