@@ -1,0 +1,36 @@
+--Table: burnar.sprnartype
+
+--DROP TABLE burnar.sprnartype;
+
+CREATE TABLE burnar.sprnartype (
+  "key"     integer NOT NULL PRIMARY KEY,
+  ops       varchar(50),
+  izmer     numeric(7) NOT NULL,
+  atribnum  numeric(2) NOT NULL,
+  /* Keys */
+  CONSTRAINT pk_key11
+    PRIMARY KEY ("key")
+);
+
+ALTER TABLE burnar.sprnartype
+  OWNER TO postgres;
+
+COMMENT ON TABLE burnar.sprnartype
+  IS 'справочник видов (типов) нарядов';
+
+COMMENT ON COLUMN burnar.sprnartype.ops
+  IS 'описание';
+
+COMMENT ON COLUMN burnar.sprnartype.izmer
+  IS '!основной измеритель наряда';
+
+COMMENT ON COLUMN burnar.sprnartype.atribnum
+  IS 'номер главного атрибута измерителя для наряда';
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER, TRUNCATE
+  ON burnar.sprnartype
+TO postgres;
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER, TRUNCATE
+  ON burnar.sprnartype
+TO burnar_role;
