@@ -1,0 +1,40 @@
+--Table: burnar.spr_workers
+
+--DROP TABLE burnar.spr_workers;
+
+CREATE TABLE burnar.spr_workers (
+  "key"  integer NOT NULL PRIMARY KEY,
+  org    integer NOT NULL,
+  boss   integer NOT NULL,
+  /* Keys */
+  CONSTRAINT pk_key
+    PRIMARY KEY ("key"),
+  /* Foreign keys */
+  CONSTRAINT fk_myboss
+    FOREIGN KEY (boss)
+    REFERENCES burnar.sprdoljnost("key"), 
+  CONSTRAINT fk_org
+    FOREIGN KEY (org)
+    REFERENCES burnar.org_stru(id)
+);
+
+CREATE INDEX nk_spr_workers
+  ON burnar.spr_workers
+  ("key", org);
+
+ALTER TABLE burnar.spr_workers
+  OWNER TO postgres;
+
+COMMENT ON TABLE burnar.spr_workers
+  IS 'Бригады и другие силы производящие какие-либо работы (ресурсы) с должностями командиров';
+
+COMMENT ON COLUMN burnar.spr_workers.org
+  IS 'оргструктурная единица';
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER, TRUNCATE
+  ON burnar.spr_workers
+TO postgres;
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER, TRUNCATE
+  ON burnar.spr_workers
+TO burnar_role;
