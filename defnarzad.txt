@@ -1,0 +1,53 @@
+--Table: burnar.defnarzad
+
+--DROP TABLE burnar.defnarzad;
+
+CREATE TABLE burnar.defnarzad (
+  narkey      integer NOT NULL PRIMARY KEY,
+  begdate     timestamp without time zone,
+  enddate     timestamp without time zone,
+  closed      numeric(1) NOT NULL DEFAULT 0,
+  closeddate  timestamp without time zone,
+  /* Keys */
+  CONSTRAINT pk_narkey1
+    PRIMARY KEY (narkey)
+);
+
+CREATE TRIGGER trg_defnarzad_upd
+  BEFORE UPDATE
+  ON burnar.defnarzad
+  FOR EACH ROW
+  EXECUTE PROCEDURE burnar.ftrg_defnarzad_upd();
+
+ALTER TABLE burnar.defnarzad
+  OWNER TO postgres;
+
+COMMENT ON TABLE burnar.defnarzad
+  IS 'общие характеристики нарядов в части задания';
+
+COMMENT ON COLUMN burnar.defnarzad.narkey
+  IS 'код описателя наряда';
+
+COMMENT ON COLUMN burnar.defnarzad.begdate
+  IS 'планируемая календарная дата начала наряда';
+
+COMMENT ON COLUMN burnar.defnarzad.enddate
+  IS 'планируемая календарная дата окончания наряда';
+
+COMMENT ON COLUMN burnar.defnarzad.closed
+  IS 'признак закрытия от изменений 0-открыт,1-закрыт';
+
+COMMENT ON COLUMN burnar.defnarzad.closeddate
+  IS 'дата закрытия от изменений (задается автоматом при closed=1)';
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER, TRUNCATE
+  ON burnar.defnarzad
+TO postgres;
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER, TRUNCATE
+  ON burnar.defnarzad
+TO burnar_role;
+
+GRANT SELECT
+  ON burnar.defnarzad
+TO out_asubur;
