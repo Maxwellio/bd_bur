@@ -1,0 +1,22 @@
+DECLARE
+  result varchar default '';
+  rec record;
+BEGIN
+
+  -- возвращает список периодов по коду наряда =Мацола=
+  for rec in
+    (
+    select to_char(vpd.Begoperdate,'dd.mm.yyyy') beg_,
+           to_char(vpd.Outoperdate,'dd.mm.yyyy') end_
+    from   burnar.Vipolnenie_Period vpd
+    where  vpd.NarKey = NarKey_  
+    order by vpd.Begoperdate  
+    )
+  loop
+    result:=result||rec.Beg_||'-'||rec.End_||'; ';
+  end loop; 
+-- result:=SUBSTR(result,1,length(result)-2);
+ result:= rtrim(result, '-');
+ return(Result);
+
+END
