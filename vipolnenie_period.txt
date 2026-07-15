@@ -1,0 +1,77 @@
+--Table: burnar.vipolnenie_period
+
+--DROP TABLE burnar.vipolnenie_period;
+
+CREATE TABLE burnar.vipolnenie_period (
+  "key"        integer NOT NULL PRIMARY KEY,
+  begoperdate  timestamp without time zone NOT NULL,
+  outoperdate  timestamp without time zone NOT NULL,
+  nm           varchar(128),
+  user_id      integer NOT NULL,
+  narkey       integer NOT NULL,
+  /* Keys */
+  CONSTRAINT pk_period_key
+    PRIMARY KEY ("key"),
+  /* Foreign keys */
+  CONSTRAINT fk_user_id
+    FOREIGN KEY (user_id)
+    REFERENCES burnar.users(users_id)
+);
+
+CREATE INDEX nk_vipolnenie_period
+  ON burnar.vipolnenie_period
+  (narkey);
+
+CREATE TRIGGER trg_vip_period_del_after
+  AFTER DELETE
+  ON burnar.vipolnenie_period
+  FOR EACH ROW
+  EXECUTE PROCEDURE burnar.ftrg_vip_period_del_after();
+
+CREATE TRIGGER trg_vip_period_ins_after
+  AFTER INSERT
+  ON burnar.vipolnenie_period
+  FOR EACH ROW
+  EXECUTE PROCEDURE burnar.ftrg_vip_period_ins_after();
+
+CREATE TRIGGER trg_vip_period_ins_before
+  BEFORE INSERT
+  ON burnar.vipolnenie_period
+  FOR EACH ROW
+  EXECUTE PROCEDURE burnar.ftrg_vip_period_ins_before();
+
+ALTER TABLE burnar.vipolnenie_period
+  OWNER TO postgres;
+
+COMMENT ON TABLE burnar.vipolnenie_period
+  IS 'Периоды выполнения работ';
+
+COMMENT ON COLUMN burnar.vipolnenie_period."key"
+  IS 'Уникальный код периода';
+
+COMMENT ON COLUMN burnar.vipolnenie_period.begoperdate
+  IS 'время начала выполения';
+
+COMMENT ON COLUMN burnar.vipolnenie_period.outoperdate
+  IS 'время окончания выполения';
+
+COMMENT ON COLUMN burnar.vipolnenie_period.nm
+  IS 'название периода';
+
+COMMENT ON COLUMN burnar.vipolnenie_period.user_id
+  IS 'код пользователя создавшего данный период';
+
+COMMENT ON COLUMN burnar.vipolnenie_period.narkey
+  IS 'код наряда';
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER, TRUNCATE
+  ON burnar.vipolnenie_period
+TO postgres;
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER, TRUNCATE
+  ON burnar.vipolnenie_period
+TO burnar_role;
+
+GRANT SELECT
+  ON burnar.vipolnenie_period
+TO out_asubur;
