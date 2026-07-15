@@ -1,0 +1,57 @@
+-- функция возвращает строку мастеров через дефис :) 
+DECLARE
+  Result varchar(128) default '';
+  defBegDate date;
+  rec record;
+BEGIN
+
+  select d.createdate into defBegDate 
+  from burnar.defnar d where d.key=nkey ;
+
+for rec in (
+select 
+(case p.id            
+           when 52 then 1 --Ю.А.Скороход (бригада  Ю.А.Скороход - А.В.Живаев) 
+           when 53 then 2 --В.А.Кондрашов (бригада В.А.Кондрашов - А.А. Бисеров)
+           when 55 then 3 --В.С.Тригубенко (бригада В.С.Тригубенко - Н.Д.Левчаков)
+           when 60 then 4 --А.Ю.Иванов (бригада А.Ю.Иванов - В.П.Брехов)  
+           when 203 then 5 --Ф.М.Шафиков (бригада Ф.М.Шафиков - Р.М.Тавкалов)
+           when 141 then 6 --Н.Д.Левчаков (бригада В.С.Тригубенко - Н.Д.Левчаков)
+           when 68 then 7 --Р.М.Тавкалов (бригада Ф.М.Шафиков - Р.М.Тавкалов)
+           when 246 then 8 --А.В.Живаев (бригада  Ю.А.Скороход - А.В.Живаев) 
+           when 159 then 9 --А.А. Бисеров (бригада В.А.Кондрашов - А.А. Бисеров)
+           when 142 then 10 --В.П.Брехов (бригада А.Ю.Иванов - В.П.Брехов)  
+           when 2836 then 11 --И.Г.Третьяков (бригада И.Г.Третьяков - Д.А.Иванов)
+else 100    -- все остальные
+end      
+) sort2masters ,      
+            
+       p.id, p.fio,p.fioreports,p.fiorodpad from 
+       burnar.defnar def,  
+       burnar.people   p,
+       burnar.org_stru o,
+       burnar.karjera  k,
+       burnar.doljtostruct ds,
+       burnar.spr_workers w
+
+ where
+k.idpeople = p.id
+   and k.dtenter <=def.createdate
+   and k.dtout >= def.createdate
+   and k.doljinstru =ds.key
+   and ds.org=o.id
+   and def.key= nkey
+   and o.id=w.org
+   and w.key=def.ownernar
+      --26.12
+   and w.boss=ds.doljnost 
+   order by 1 )
+loop
+ result:=result||rec.fioreports||' - ';
+end loop;
+
+ --result:=SUBSTR(result,1,length(result)-3);
+ result := rtrim(result, ' - ');
+ return(Result);
+
+END
