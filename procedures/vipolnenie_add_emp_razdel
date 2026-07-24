@@ -1,0 +1,216 @@
+--Procedure: burnar.vipolnenie_add_emp_razdel(integer, timestamp without time zone, bigint, numeric, numeric, integer, numeric)
+
+--DROP PROCEDURE burnar.vipolnenie_add_emp_razdel(integer, timestamp without time zone, bigint, numeric, numeric, integer, numeric);
+
+CREATE OR REPLACE PROCEDURE burnar.vipolnenie_add_emp_razdel
+(
+  IN  nkey      integer,
+  IN  datein    timestamp without time zone,
+  IN  aparent   bigint,
+  IN  aprnum    numeric,
+  IN  razdel    numeric,
+  IN  who       integer,
+  IN  withname  numeric                    
+)
+AS $$
+declare 
+  CodIzmer public.spr_izmer.key%type;
+  defBegDate date; --дата по умолчанию для вставляемой операции
+  Res burnar.vipolnenie_oper.whowork%type;
+  ZadanieKey burnar.vipolnenie_Oper.Key%type;
+  aoplifetype public.operlife.findnormtype%type;
+  aoperlifeid public.operlife.id%type;
+  atyperab public.operlife.typerab%type;
+  newprnum burnar.vipolnenie_oper.prnum%type;
+  prnum_in_tab burnar.vipolnenie_oper.prnum%type;
+  isclosflag burnar.DEFNARVIP.closed%type;
+  aOPlifetype_add burnar.vipolnenie_oper.operlifetype%type:=0;
+  countoper numeric:=0;
+  oper burnar.vipolnenie_oper.oper%type;
+  parent_parent burnar.vipolnenie_oper.parent%type:=0;
+  parent_razdel burnar.vipolnenie_oper.razdel%type:=0;
+  oper_key burnar.vipolnenie_oper.oper%type;
+  fl boolean;
+  rec record;
+  recstru record;  
+begin
+select t.oper into oper_key
+from public.tematic_razdel t
+where t.id = razdel;
+
+if oper_key is null then
+
+if aparent is not null then
+  select zo.oper, zo.key into oper, parent_parent
+  from burnar.vipolnenie_oper zo
+  where zo.key = aparent;
+
+  select zo.parent, zo.razdel into parent_parent, parent_razdel
+  from burnar.vipolnenie_oper zo
+  where zo.key = aparent;
+
+end if;
+
+if ((Aparent is null) and (razdel not in (13555,13556,13557,13558,13559,13560,13561,13562,13563,13564,13565,13566))) or
+   ((Aparent is not null) and (oper is not null))
+    or ((parent_parent is null) and (parent_razdel not in (13555,13556,13557,13558,13559,13560,13561,13562,13563,13564,13565,13566)))
+then
+    RAISE EXCEPTION '-20001, Этот блок можно добавить только в основные разделы!'; -- нельзя вставлять не в основной блок!
+else
+begin
+
+ --- так как из структуры нельзя выдернуть операцию это надо проверить, ищем тип оперлайфа предка
+if Aparent is not null then
+    select o.operlifetype  into aOPlifetype_add 
+    from burnar.vipolnenie_oper o 
+    where o.key=Aparent;
+end if;
+if coalesce(aOPlifetype_add,0)<>81  then
+  --Получаем основной измеритель наряда
+  select t.izmer into CodIzmer 
+  from burnar.sprnartype t, burnar.defnar d
+  where t.key = d.nartype 
+        and d.key = nkey;
+  --если дата применения не задана, берем по умолчанию
+  if dateIn is null then
+    select coalesce(z.begdate,sysdate),closed  into defBegDate,isclosflag  
+    from burnar.DEFNARVIP z 
+    where z.narkey = nkey;
+  else
+    select closed  into  isclosflag 
+    from burnar.DEFNARVIP z 
+    where z.narkey = nkey;
+    defBegDate := dateIn;
+  end if;
+  --разбираемся с ресурсом(производителем операции)
+  if who is null then
+    select d.ownernar into Res 
+    from burnar.defnar d 
+    where d.key = nkey;
+  else
+    Res := who;
+  end if;
+if isclosflag <>1 then
+  --сдвигаем нумерацию внутри уровня для добавления куска тем.каталога
+  if APrnum is not null then  newprnum:=APrnum;
+  --если null надо в конец корня вставлять :)
+  else
+  -- нужно проверить кол-во работ в наряде есдли больше 0 то в конец, нет так в начало
+  select count(*) into countoper 
+  from burnar.vipolnenie_oper oo 
+  where  oo.narkey=nkey;
+  
+  if countoper>0 then
+  --ещем максимальный порядковый и работаем с ним
+  select max(pp.prnum)+1  into newprnum 
+  from burnar.vipolnenie_oper pp 
+  where pp.narkey=nkey 
+--        and pp.parent is null;
+        and pp.parent = aparent;  
+  else
+    newprnum:=1;
+  end if; --countoper>0
+   end if;--APrnum is not null  --должно работать :)))))))
+
+for rec in (select null::numeric newparent, t.oper, burnar.seq_return() newkey, t.id, t.parent_id, t.ord, t.nm
+            from public.tematic_razdel t
+            where t.id = razdel)
+
+--добываем тип оперлайфа для данного периода
+
+loop
+      --сдвигаем нумерацию внутри уровня для добавления куска тем.каталога
+     if AParent is not null then
+     if rec.newparent is not null then
+        prnum_in_tab:=rec.ord;
+     else
+      update burnar.vipolnenie_oper r
+         set prnum = prnum + 1
+       where parent =AParent
+        and prnum >= newprnum;
+
+     prnum_in_tab:=newprnum;
+     newprnum:=newprnum+1;
+     end if;
+     end if;
+
+     if AParent is null then
+     if rec.newparent is not null then
+     prnum_in_tab:=rec.ord;
+     else
+      update burnar.vipolnenie_oper r
+         set r.prnum = r.prnum + 1
+       where r.parent is null and r.narkey=nkey
+        and r.prnum >= newprnum;
+
+     prnum_in_tab:=newprnum;
+     newprnum:=newprnum+1;
+     end if;
+     end if;
+
+      --добавляем операцию в vipolnenie_oper
+      insert into burnar.vipolnenie_oper 
+        (key,
+         parent,
+         oper,
+         operlifeid,
+         begoperdate,
+         prnum,
+         whowork,
+         worktype,
+         razdel,
+         narkey,
+         colorsel,
+         volume,
+         locked,
+         operlifetype,
+         OPERLIFETYPEOPER
+         )
+      values
+        ( rec.newkey,
+          coalesce(rec.newparent,Aparent),
+          rec.oper,
+--          nvl2(rec.oper,aoperlifeid,null),
+          case when rec.oper is not null then aoperlifeid
+               when rec.oper is null then null
+          end,
+          defBegDate,
+          prnum_in_tab,
+          Res,
+          null,
+          rec.id, -- razdel,
+          nkey,
+          0,
+          null, --объем надо искать по дереву САПТП, если он тебе нужен добывай его сам
+          0,
+          case when rec.oper is not null then aoplifetype
+               when rec.oper is null then null
+          end,
+          case when rec.oper is not null then atyperab
+               when rec.oper is null then null
+          end
+         );
+         
+        if (rec.Oper is null)and ( rec.nm is not null) then
+          insert into burnar.vipolnenie_anynm (vip_key,nm) values (rec.newkey, rec.nm);
+        end if;
+         
+end loop;
+
+--commit;
+
+end if;
+  else
+ RAISE EXCEPTION '-20001, Нельзя добавлять работы в структуры!';  -- нельзя копировать в структуру
+ end if;
+end;
+end if;
+else
+null;
+end if;
+end ;
+$$
+LANGUAGE 'plpgsql';
+
+ALTER PROCEDURE burnar.vipolnenie_add_emp_razdel(integer, timestamp without time zone, bigint, numeric, numeric, integer, numeric)
+  OWNER TO postgres;
