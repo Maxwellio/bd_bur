@@ -1,0 +1,99 @@
+--Table: public.spr_oper
+
+--DROP TABLE public.spr_oper;
+
+CREATE TABLE public.spr_oper (
+  "key"          numeric(7) NOT NULL PRIMARY KEY,
+  nm             varchar(512) NOT NULL,
+  izmerzavis     numeric(7),
+  nakolichzavis  numeric(6,2),
+  kodop          varchar(6),
+  shortnm        varchar(50),
+  /* Keys */
+  CONSTRAINT spr_oper_pkey
+    PRIMARY KEY ("key")
+);
+
+CREATE UNIQUE INDEX un_kodop
+  ON public.spr_oper
+  (kodop);
+
+CREATE TRIGGER trg_spr_oper_before
+  BEFORE INSERT
+  ON public.spr_oper
+  FOR EACH ROW
+  EXECUTE PROCEDURE public.ftrg_spr_oper_before();
+
+CREATE TRIGGER trg_sproper_del_bef
+  BEFORE DELETE
+  ON public.spr_oper
+  FOR EACH ROW
+  EXECUTE PROCEDURE public.ftrg_sproper_del_bef();
+
+CREATE TRIGGER trg_sproper_upd_bef
+  BEFORE UPDATE
+  ON public.spr_oper
+  FOR EACH ROW
+  EXECUTE PROCEDURE public.ftrg_sproper_upd_bef();
+
+ALTER TABLE public.spr_oper
+  OWNER TO postgres;
+
+COMMENT ON TABLE public.spr_oper
+  IS 'Перечень операций';
+
+COMMENT ON COLUMN public.spr_oper.izmerzavis
+  IS 'измеритель зависимый';
+
+COMMENT ON COLUMN public.spr_oper.nakolichzavis
+  IS 'на какое количество зависимых единиц приходится норма';
+
+COMMENT ON COLUMN public.spr_oper.kodop
+  IS 'код операции по классификатору СНГ';
+
+COMMENT ON COLUMN public.spr_oper.shortnm
+  IS 'сокращенное имя операции';
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER, TRUNCATE
+  ON public.spr_oper
+TO postgres;
+
+GRANT SELECT
+  ON public.spr_oper
+TO exper_light;
+
+GRANT SELECT
+  ON public.spr_oper
+TO buildrig_role;
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER, TRUNCATE
+  ON public.spr_oper
+TO burnar_role;
+
+GRANT SELECT
+  ON public.spr_oper
+TO nkrs_role;
+
+GRANT SELECT
+  ON public.spr_oper
+TO osvoenie_role;
+
+GRANT SELECT
+  ON public.spr_oper
+TO out_asubur;
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER
+  ON public.spr_oper
+TO depnar_role;
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER
+  ON public.spr_oper
+TO strapping_role;
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER
+  ON public.spr_oper
+TO calc_role;
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER
+  ON public.spr_oper
+TO hos_role;
