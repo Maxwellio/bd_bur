@@ -1,0 +1,28 @@
+--Table: burnar.org_stru_tem_cat
+
+--DROP TABLE burnar.org_stru_tem_cat;
+
+CREATE TABLE burnar.org_stru_tem_cat (
+  org_id      numeric,
+  tem_cat_id  numeric
+);
+
+ALTER TABLE burnar.org_stru_tem_cat
+  OWNER TO postgres;
+
+COMMENT ON TABLE burnar.org_stru_tem_cat
+  IS '–азрешенные элементы тем. каталога дл¤ структурного подразделени¤';
+
+COMMENT ON COLUMN burnar.org_stru_tem_cat.org_id
+  IS 'код структурки';
+
+COMMENT ON COLUMN burnar.org_stru_tem_cat.tem_cat_id
+  IS 'код элемента тематического каталога';
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER, TRUNCATE
+  ON burnar.org_stru_tem_cat
+TO postgres;
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER, TRUNCATE
+  ON burnar.org_stru_tem_cat
+TO burnar_role;
