@@ -1,0 +1,89 @@
+--Table: public.tematic_razdel
+
+--DROP TABLE public.tematic_razdel;
+
+CREATE TABLE public.tematic_razdel (
+  id         numeric(8) NOT NULL PRIMARY KEY,
+  nm         varchar(400),
+  parent_id  numeric(8),
+  ord        numeric(3),
+  oper       numeric(7),
+  nartype    numeric,
+  colorsel   numeric DEFAULT 0,
+  /* Keys */
+  CONSTRAINT tematic_razdel_pkey
+    PRIMARY KEY (id),
+  /* Foreign keys */
+  CONSTRAINT fk_oper11
+    FOREIGN KEY (oper)
+    REFERENCES public.spr_oper("key"), 
+  CONSTRAINT fk_parentid11
+    FOREIGN KEY (parent_id)
+    REFERENCES public.tematic_razdel(id)
+    ON DELETE CASCADE
+);
+
+CREATE INDEX indx_tematic_razdel_parent_id
+  ON public.tematic_razdel
+  (parent_id);
+
+CREATE TRIGGER trg_tematic_razdel_ins_before
+  BEFORE INSERT
+  ON public.tematic_razdel
+  FOR EACH ROW
+  EXECUTE PROCEDURE public.ftrg_tematic_razdel_ins_before();
+
+ALTER TABLE public.tematic_razdel
+  OWNER TO postgres;
+
+COMMENT ON TABLE public.tematic_razdel
+  IS 'Иерархический справочник тематических разделов';
+
+COMMENT ON COLUMN public.tematic_razdel.oper
+  IS 'код операции, если пусто то раздел  ( вероятно всего )';
+
+COMMENT ON COLUMN public.tematic_razdel.nartype
+  IS 'если хотим приписать к типу наряда';
+
+COMMENT ON COLUMN public.tematic_razdel.colorsel
+  IS 'цвет выделения строки';
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER, TRUNCATE
+  ON public.tematic_razdel
+TO postgres;
+
+GRANT SELECT
+  ON public.tematic_razdel
+TO exper_light;
+
+GRANT SELECT
+  ON public.tematic_razdel
+TO buildrig_role;
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER, TRUNCATE
+  ON public.tematic_razdel
+TO burnar_role;
+
+GRANT SELECT
+  ON public.tematic_razdel
+TO nkrs_role;
+
+GRANT SELECT
+  ON public.tematic_razdel
+TO osvoenie_role;
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER
+  ON public.tematic_razdel
+TO depnar_role;
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER
+  ON public.tematic_razdel
+TO strapping_role;
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER
+  ON public.tematic_razdel
+TO calc_role;
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER
+  ON public.tematic_razdel
+TO hos_role;
