@@ -1,0 +1,31 @@
+--Procedure: burnar.deleteuser(numeric)
+
+--DROP PROCEDURE burnar.deleteuser(numeric);
+
+CREATE OR REPLACE PROCEDURE burnar.deleteuser
+(
+  IN  peopleid  numeric
+)
+AS $$
+BEGIN
+  delete from burnar.users  
+  where people_id = peopleId;
+   
+  delete from burnar.znpodpis  
+  where idpeople = peopleId;
+     
+  delete from burnar.karjera 
+  where idpeople = peopleId;     
+     
+  delete from burnar.people  
+  where id = peopleId;
+ 
+    
+  --delete from burnar.doljtostruct  where key in (select doljinstru from burnar.karjera where idpeople = peopleId);
+
+END
+$$
+LANGUAGE 'plpgsql';
+
+ALTER PROCEDURE burnar.deleteuser(numeric)
+  OWNER TO postgres;
