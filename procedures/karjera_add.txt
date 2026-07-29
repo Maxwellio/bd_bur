@@ -1,0 +1,72 @@
+--Procedure: burnar.karjera_add(integer, integer, date, date, integer, integer, numeric)
+
+--DROP PROCEDURE burnar.karjera_add(integer, integer, date, date, integer, integer, numeric);
+
+CREATE OR REPLACE PROCEDURE burnar.karjera_add
+(
+  IN  apeople      integer,
+  IN  akarjera_id  integer,
+  IN  datein       date,
+  IN  dateout      date,
+  IN  aorg_id      integer,
+  IN  adolj_id     integer,
+  IN  stat         numeric
+)
+AS $$
+declare 
+  adoljstru_id burnar.doljtostruct.key%type;
+begin
+
+  begin
+  select t.key into adoljstru_id from burnar.doljtostruct t
+  where t.doljnost=adolj_id and t.org=aorg_id;
+
+  --запись не найдена!
+  exception
+     when no_data_found then
+       adoljstru_id:=null;
+  end;
+  
+  --если нет такой пары ее надо создать
+  if adoljstru_id is null then
+    -- новый кей нам необходимо знать для дальнейшей работы
+
+    adoljstru_id := nextval('burnar.seq_doljtostruct');
+    -- инсертим строку
+    insert into burnar.doljtostruct (key,
+                                 DOLJNOST,
+                                 ORG,
+                                 boss)
+           values
+                                (adoljstru_id,
+                                 adolj_id,
+                                 aorg_id,
+                                 null);
+  end if; --if adoljstru_id is null then
+  --если же есть надо просто проинсертить/проапдейтить карьеру
+  if akarjera_id is null then
+    --инсертим с надеждой что время задано адекватно :)
+    insert into burnar.karjera (IDPEOPLE,
+                                DTENTER,
+                                DTOUT,
+                                DOLJINSTRU,
+                                KEY)
+           values
+                                (apeople,
+                                 dateIn,
+                                 dateOut,
+                                 adoljstru_id,
+                                 null -- триггер все сам сделает :)
+                                 );
+  else
+    --апдейтим и не теряем надежды
+    update burnar.karjera set DTENTER=dateIn, DTOUT=dateOut, DOLJINSTRU=adoljstru_id where KEY=akarjera_id ;
+  end if; --if akarjera_id is null then
+  
+
+end ;
+$$
+LANGUAGE 'plpgsql';
+
+ALTER PROCEDURE burnar.karjera_add(integer, integer, date, date, integer, integer, numeric)
+  OWNER TO postgres;
