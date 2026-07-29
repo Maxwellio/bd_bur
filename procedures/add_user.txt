@@ -1,0 +1,98 @@
+--Procedure: burnar.add_user(numeric, numeric, date, date, numeric, varchar, varchar, varchar)
+
+--DROP PROCEDURE burnar.add_user(numeric, numeric, date, date, numeric, varchar, varchar, varchar);
+
+CREATE OR REPLACE PROCEDURE burnar.add_user
+(
+  IN  p_people    numeric,
+  IN  p_role_id   numeric,
+  IN  p_dtenter   date,
+  IN  p_dtout     date,
+  IN  p_act       numeric,
+  IN  p_note      varchar,
+  IN  p_username  varchar,
+  IN  p_password  varchar
+)
+AS $$
+DECLARE
+  Result varchar;
+  --Процедура создания пользователя БД, для доступа к "Вышкостроению"
+  check_summ numeric;
+  user_id burnar.users.users_id%type;
+  sql_txt varchar(1000);
+  us_nm varchar(200);
+BEGIN
+
+ --1. Занят логин?
+ select count(*) into check_summ 
+ from burnar.users u
+ where u.people_id <> p_people
+       and upper(u.ora_name) = upper(p_username);   
+           
+ if check_summ > 0 then --Занят
+   RAISE EXCEPTION '-20001, Логин уже используется другим пользователем!'; 
+ end if;    
+  
+  
+  
+  
+ --1.1 Используется другой логин для этого пользователя?
+ select count(*) into check_summ 
+ from burnar.users u
+ where u.people_id = p_people;        
+ 
+ if check_summ > 0 then --Есть пользователь в users
+   --Сравниваем ora-name. В процедуре реализация 1н-к-1му.  
+   select u.ora_name into us_nm 
+   from burnar.users u
+   where u.people_id = p_people;
+   
+   if upper(p_username) <> upper(us_nm) then --Если попытали подменить ora-name
+     RAISE EXCEPTION '-20002, У пользователя уже создан другой логин!'; 
+   end if;  
+ end if;
+  
+
+
+
+ --2. Проверяем наличее пользователя в списке т.users вышкарей 
+ select count(*) into check_summ 
+ from burnar.users u
+ where u.people_id = p_people; 
+ 
+ if check_summ = 0 then -- Создание     
+   insert into burnar.USERS (people_id, dtenter, dtOut, active, note, users_id, ora_name, password, created)
+   values(p_people
+          ,p_dtenter
+          ,p_dtOut
+          ,p_act
+          ,p_note
+          ,nextval('burnar.seq_users')
+          ,UPPER(p_username)
+          ,burnar.get_hash (p_username, p_password)
+          ,now() --вместо ораклового dba_users.created/дата создания физического пользователя оракл
+          )
+   returning users_id into user_id;     
+      
+ else -- Редактирование
+   select u.users_id into user_id 
+   from burnar.users u
+   where u.people_id = p_people;
+   
+   update burnar.users 
+   set --role_id = p_role_id
+       note = p_note
+       ,active = p_act
+       ,dtenter = p_dtenter
+       ,dtOut = p_dtout 
+   where users_id = user_id;
+   
+ end if;
+  
+
+END
+$$
+LANGUAGE 'plpgsql';
+
+ALTER PROCEDURE burnar.add_user(numeric, numeric, date, date, numeric, varchar, varchar, varchar)
+  OWNER TO postgres;
