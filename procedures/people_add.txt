@@ -1,0 +1,50 @@
+--Procedure: burnar.people_add(varchar, numeric, numeric, varchar, varchar, date, integer, integer, integer)
+
+--DROP PROCEDURE burnar.people_add(varchar, numeric, numeric, varchar, varchar, date, integer, integer, integer);
+
+CREATE OR REPLACE PROCEDURE burnar.people_add
+(
+  IN     afio         varchar,
+  IN     acodr3       numeric,
+  IN     atabn        numeric,
+  IN     afioreports  varchar,
+  IN     afiorodpad   varchar,
+  IN     datein       date,
+  IN     aorg_id      integer,
+  IN     adolj_id     integer,
+  INOUT  apeople_id   integer
+)
+AS $$
+declare 
+
+begin
+
+    -- новый кей нам необходимо знать для дальнейшей работы
+    apeople_id := nextval('burnar.seq_people');
+    -- инсертим строку
+    insert into burnar.people (id,
+                        fio,
+                        codr3,
+                        tabn,
+                        fioreports,
+                        fiorodpad
+                           )
+           values
+                                (apeople_id,
+                                 aFIO,
+                                 acodr3,
+                                 atabn,
+                                 afioreports,
+                                 afiorodpad
+                                 );
+
+  --добавляем карьеру
+  call  burnar.karjera_add(apeople_id,null,dateIn,'01.01.2040',aorg_id,adolj_id,null);
+  
+
+end ;
+$$
+LANGUAGE 'plpgsql';
+
+ALTER PROCEDURE burnar.people_add(varchar, numeric, numeric, varchar, varchar, date, integer, integer, integer)
+  OWNER TO postgres;
