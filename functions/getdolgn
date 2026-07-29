@@ -1,0 +1,45 @@
+--Function: burnar.getdolgn(integer)
+
+--DROP FUNCTION burnar.getdolgn(integer);
+
+CREATE OR REPLACE FUNCTION burnar.getdolgn
+(
+  IN  pid  integer
+)
+RETURNS varchar AS
+$$
+DECLARE
+  Result varchar(500);
+BEGIN
+
+select distinct max(s.nm) into result
+from burnar.users t, burnar.people p, burnar.karjera k, burnar.DOLJTOSTRUCT d, burnar.org_stru o, burnar.sprdoljnost s
+where t.people_id = p.id
+      and k.idpeople = p.id
+      and d.doljnost = s.key
+      and p.id = pid
+      and k.dtout > now()
+      and k.doljinstru = d.key
+      and o.id = d.org;
+
+
+return(trim(Result));
+
+END
+$$
+LANGUAGE 'plpgsql';
+
+ALTER FUNCTION burnar.getdolgn(integer)
+  OWNER TO postgres;
+
+GRANT EXECUTE
+  ON FUNCTION burnar.getdolgn(integer)
+TO PUBLIC;
+
+GRANT EXECUTE
+  ON FUNCTION burnar.getdolgn(integer)
+TO postgres;
+
+GRANT EXECUTE
+  ON FUNCTION burnar.getdolgn(integer)
+TO burnar_role;
