@@ -1,0 +1,36 @@
+--Table: burnar.vipolnenie_anynm
+
+--DROP TABLE burnar.vipolnenie_anynm;
+
+CREATE TABLE burnar.vipolnenie_anynm (
+  vip_key  bigint NOT NULL,
+  nm       varchar(512) NOT NULL,
+  /* Keys */
+  CONSTRAINT ni_anynmz
+    UNIQUE (vip_key),
+  /* Foreign keys */
+  CONSTRAINT fk_vipolnenieoper
+    FOREIGN KEY (vip_key)
+    REFERENCES burnar.vipolnenie_oper("key")
+    ON DELETE CASCADE
+);
+
+ALTER TABLE burnar.vipolnenie_anynm
+  OWNER TO postgres;
+
+COMMENT ON TABLE burnar.vipolnenie_anynm
+  IS 'Произвольные названия блоков операций выполения';
+
+COMMENT ON COLUMN burnar.vipolnenie_anynm.vip_key
+  IS 'Код строки наряда';
+
+COMMENT ON COLUMN burnar.vipolnenie_anynm.nm
+  IS 'Произвольное имя строки наряда';
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER, TRUNCATE
+  ON burnar.vipolnenie_anynm
+TO postgres;
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER, TRUNCATE
+  ON burnar.vipolnenie_anynm
+TO burnar_role;
