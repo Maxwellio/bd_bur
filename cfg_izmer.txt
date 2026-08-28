@@ -1,0 +1,97 @@
+--Table: public.cfg_izmer
+
+--DROP TABLE public.cfg_izmer;
+
+CREATE TABLE public.cfg_izmer (
+  izmer      numeric NOT NULL,
+  prnum      numeric(2) NOT NULL,
+  edizm      numeric(4) NOT NULL,
+  atribname  varchar(60),
+  /* Foreign keys */
+  CONSTRAINT fk_edizm11
+    FOREIGN KEY (edizm)
+    REFERENCES public.spr_edizm("key"), 
+  CONSTRAINT fk_izmer11
+    FOREIGN KEY (izmer)
+    REFERENCES public.spr_izmer("key")
+);
+
+CREATE UNIQUE INDEX unik11
+  ON public.cfg_izmer
+  (izmer, prnum);
+
+CREATE TRIGGER trg_cfgizmer_del_bef
+  BEFORE DELETE
+  ON public.cfg_izmer
+  FOR EACH ROW
+  EXECUTE PROCEDURE public.ftrg_cfgizmer_del_bef();
+
+CREATE TRIGGER trg_cfgizmer_ins_bef
+  BEFORE INSERT
+  ON public.cfg_izmer
+  FOR EACH ROW
+  EXECUTE PROCEDURE public.ftrg_cfgizmer_ins_bef();
+
+CREATE TRIGGER trg_cfgizmer_upd_bef
+  BEFORE UPDATE
+  ON public.cfg_izmer
+  FOR EACH ROW
+  EXECUTE PROCEDURE public.ftrg_cfgizmer_upd_bef();
+
+ALTER TABLE public.cfg_izmer
+  OWNER TO postgres;
+
+COMMENT ON TABLE public.cfg_izmer
+  IS 'Настройки измерителей, так будет возвращаться результат';
+
+COMMENT ON COLUMN public.cfg_izmer.izmer
+  IS 'код измерителя';
+
+COMMENT ON COLUMN public.cfg_izmer.prnum
+  IS 'порядковый номер';
+
+COMMENT ON COLUMN public.cfg_izmer.edizm
+  IS 'единица измерений (в которой хранятся и вычисляются данные)';
+
+COMMENT ON COLUMN public.cfg_izmer.atribname
+  IS 'имя атрибута';
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER, TRUNCATE
+  ON public.cfg_izmer
+TO postgres;
+
+GRANT SELECT
+  ON public.cfg_izmer
+TO exper_light;
+
+GRANT SELECT
+  ON public.cfg_izmer
+TO buildrig_role;
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER, TRUNCATE
+  ON public.cfg_izmer
+TO burnar_role;
+
+GRANT SELECT
+  ON public.cfg_izmer
+TO nkrs_role;
+
+GRANT SELECT
+  ON public.cfg_izmer
+TO osvoenie_role;
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER
+  ON public.cfg_izmer
+TO depnar_role;
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER
+  ON public.cfg_izmer
+TO strapping_role;
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER
+  ON public.cfg_izmer
+TO calc_role;
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER
+  ON public.cfg_izmer
+TO hos_role;
