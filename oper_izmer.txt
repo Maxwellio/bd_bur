@@ -1,0 +1,86 @@
+--Table: public.oper_izmer
+
+--DROP TABLE public.oper_izmer;
+
+CREATE TABLE public.oper_izmer (
+  "key"  numeric(7) NOT NULL PRIMARY KEY,
+  oper   numeric(7) NOT NULL,
+  izmer  numeric(7) NOT NULL,
+  /* Keys */
+  CONSTRAINT oper_izmer_pkey
+    PRIMARY KEY ("key"), 
+  CONSTRAINT un_oper_izmer
+    UNIQUE (oper, izmer),
+  /* Foreign keys */
+  CONSTRAINT fk_izmer
+    FOREIGN KEY (izmer)
+    REFERENCES public.spr_izmer("key"), 
+  CONSTRAINT fk_oper1
+    FOREIGN KEY (oper)
+    REFERENCES public.spr_oper("key")
+);
+
+CREATE INDEX indx_oper_izmer_izmer
+  ON public.oper_izmer
+  (izmer);
+
+CREATE TRIGGER trg_operizmer_ins_before
+  BEFORE INSERT
+  ON public.oper_izmer
+  FOR EACH ROW
+  EXECUTE PROCEDURE public.ftrg_operizmer_ins_before();
+
+ALTER TABLE public.oper_izmer
+  OWNER TO postgres;
+
+COMMENT ON TABLE public.oper_izmer
+  IS 'Измерители операций';
+
+COMMENT ON COLUMN public.oper_izmer."key"
+  IS 'код измерителей операций';
+
+COMMENT ON COLUMN public.oper_izmer.oper
+  IS 'код операции';
+
+COMMENT ON COLUMN public.oper_izmer.izmer
+  IS 'код измерителя';
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER, TRUNCATE
+  ON public.oper_izmer
+TO postgres;
+
+GRANT SELECT
+  ON public.oper_izmer
+TO exper_light;
+
+GRANT SELECT
+  ON public.oper_izmer
+TO buildrig_role;
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER, TRUNCATE
+  ON public.oper_izmer
+TO burnar_role;
+
+GRANT SELECT
+  ON public.oper_izmer
+TO nkrs_role;
+
+GRANT SELECT
+  ON public.oper_izmer
+TO osvoenie_role;
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER
+  ON public.oper_izmer
+TO depnar_role;
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER
+  ON public.oper_izmer
+TO strapping_role;
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER
+  ON public.oper_izmer
+TO calc_role;
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER
+  ON public.oper_izmer
+TO hos_role;
