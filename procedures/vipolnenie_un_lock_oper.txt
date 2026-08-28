@@ -1,0 +1,80 @@
+--Procedure: burnar.vipolnenie_un_lock_oper(bigint, integer)
+
+--DROP PROCEDURE burnar.vipolnenie_un_lock_oper(bigint, integer);
+
+CREATE OR REPLACE PROCEDURE burnar.vipolnenie_un_lock_oper
+(
+  IN  akey     bigint,
+  IN  anarkey  integer
+)
+AS $$
+begin
+
+ update burnar.vipolnenie_oper 
+ set locked = 0
+ where key in (with a as
+                         (select w.*, row_number() OVER() rownum
+                            from (with recursive o as (select vo.key,
+                                                              vo.parent,
+                                                              vo.prnum,
+                                                              vo.begoperdate, 
+                                                              ARRAY[(row_number() OVER (PARTITION BY vo.parent ORDER BY vo.prnum))::integer] AS ord2
+                                                         from burnar.vipolnenie_oper vo
+                                                        where vo.parent is null
+                                                          and vo.narkey = anarkey
+                                                       
+                                                       union all
+                                                       select vo.key,
+                                                              vo.parent,
+                                                              vo.prnum,
+                                                              vo.begoperdate,
+                                                              o.ord2 || ARRAY[(row_number() OVER (PARTITION BY vo.parent ORDER BY vo.prnum))::integer] AS ord2
+                                                         from burnar.vipolnenie_oper vo, o
+                                                        where o.key = vo.parent)
+                                   select o.key, o.parent, o.prnum, o.begoperdate
+                                     from o
+                                    order by o.ord2, o.begoperdate) as w
+                          ),
+                        b as
+                         (select q.*, row_number() OVER() rownum
+                            from (with recursive o as (select vo.key,
+                                                              vo.parent,
+                                                              vo.prnum,
+                                                              vo.begoperdate,
+                                                              ARRAY[(row_number() OVER (PARTITION BY vo.parent ORDER BY vo.prnum))::integer] AS ord2
+                                                         from burnar.vipolnenie_oper vo
+                                                        where vo.parent is null
+                                                          and vo.narkey = anarkey
+                                                       
+                                                       union all
+                                                       select vo.key,
+                                                              vo.parent,
+                                                              vo.prnum,
+                                                              vo.begoperdate,
+                                                              o.ord2 || ARRAY[(row_number() OVER (PARTITION BY vo.parent ORDER BY vo.prnum))::integer] AS ord2
+                                                         from burnar.vipolnenie_oper vo, o
+                                                        where o.key = vo.parent)
+                                   select o.key, o.parent, o.prnum, o.begoperdate
+                                     from o
+                                    order by o.ord2, o.begoperdate) as q
+                          )
+                        select a.key
+                          from a, b
+                         where a.rownum >= b.rownum  
+                        and b.key = akey
+
+ );
+
+
+  exception when others then 
+  begin
+    RAISE EXCEPTION 'vipolnenie_Un_lock_Oper % % %', aKey, anarkey, SQLERRM;
+  end;  
+  raise;
+ 
+end ;
+$$
+LANGUAGE 'plpgsql';
+
+ALTER PROCEDURE burnar.vipolnenie_un_lock_oper(bigint, integer)
+  OWNER TO postgres;
