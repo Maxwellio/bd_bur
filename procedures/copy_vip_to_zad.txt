@@ -1,0 +1,150 @@
+--Procedure: burnar.copy_vip_to_zad(integer)
+
+--DROP PROCEDURE burnar.copy_vip_to_zad(integer);
+
+CREATE OR REPLACE PROCEDURE burnar.copy_vip_to_zad
+(
+  IN  nkey  integer
+)
+AS $$
+declare 
+s_begdate burnar.defnarzad.begdate%type;
+s_enddate burnar.defnarzad.enddate%type;
+s_closeddate burnar.defnarzad.closeddate%type;
+rec record;
+begin
+
+-----------------------------------------------------
+--чистим таблицы задания-----------------------------
+
+select t.begdate, t.enddate, t.closeddate
+  into s_begdate, s_enddate, s_closeddate
+from burnar.defnarvip t
+ where t.narkey = nkey;
+
+update burnar.defnarzad
+   set begdate = s_begdate,
+       enddate = s_enddate,
+       closeddate = s_closeddate,
+       closed = 0
+ where narkey = nkey;
+
+delete from burnar.zadanie_oper 
+ where narkey = nkey;
+
+delete from burnar.zndefnarzadatrib 
+ where defnar = nkey;
+
+delete from burnar.znrepparsz 
+ where defnar = nkey;
+------------------------------------------------------
+------------------------------------------------------
+
+
+  --копируем значения сквозных параметров
+  insert into burnar.zndefnarzadatrib (defnar,prnum,znval,val,valstr,parcode)
+  (select nkey, nt.prnum,nt.znval,nt.val,nt.valstr,nt.parcode
+   from burnar.zndefnarvipatrib nt where nt.defnar = nkey);
+
+  --копируем значения параметров отчетности для плана
+  insert into burnar.znrepparsz (defnar,repid,parcode,znval,val,valstr,prnum,repparname)
+  (select nkey, rz.repid,rz.parcode,rz.znval,rz.val,rz.valstr,rz.prnum,rz.repparname
+   from burnar.znrepparsv rz where rz.defnar = nkey);
+
+
+
+  for rec in 
+             (select q.* from
+             (with recursive tmp as(
+                                    select burnar.seq_return() newkey,
+                                           null::integer as newparent, 
+                                           o.*, 
+                                           ARRAY[(row_number() OVER (PARTITION BY o.parent
+                                           ORDER BY o.prnum))::integer] AS ord2
+                                    from burnar.vipolnenie_oper o
+                                    where o.parent is null and o.narkey=nkey
+                                    union all
+                                    select burnar.seq_return() newkey,
+                                           tmp.newkey::integer as newparent, 
+                                           o.*,
+                                           (tmp.ord2 || ARRAY[(row_number() OVER (PARTITION BY o.parent
+                                           ORDER BY o.prnum))::integer]) AS ord2
+                                    from tmp, burnar.vipolnenie_oper o
+                                    where tmp.key=o.parent
+                                    )
+                                    select tmp.* from tmp order by ord2) q)
+  
+loop
+
+      --добавляем операцию в zadanie_oper
+      insert into burnar.zadanie_oper 
+        (key,
+         parent,
+         oper,
+         operlifeid,
+         begoperdate,
+         prnum,
+         whowork,
+         worktype,
+         razdel,
+         narkey,
+         colorsel,
+         volume,
+         locked,
+         operlifetype,
+         operlifetypeoper,
+         tipbur
+         )
+      values
+        ( rec.newkey,
+          rec.newparent,
+          rec.oper,
+          rec.operlifeid,
+          rec.begoperdate,
+          rec.prnum,
+          rec.whowork,
+          rec.worktype,
+          rec.razdel,
+          nkey,
+          0, --здесь можно для скопированных работ сразу цвет прицепить :)
+          rec.volume, --объем надо искать по дереву САПТП, если он тебе нужен добывай его сам
+          0,
+          rec.operlifetype,
+          rec.operlifetypeoper,
+          rec.tipbur
+         );
+
+    --саму операцию добавили теперь надо всее описание прокопировать :)
+    --начинаем :)
+      -- параметры нам нужны
+          insert into burnar.zadanie_param (zad_key,parcode,znach)
+          (select rec.newkey, p.parcode, p.znach
+           from burnar.vipolnenie_param p
+           where p.vip_key = rec.key);
+      -- нормы тоже не лишние
+        insert into burnar.zadanie_norm (zad_key,norma,prnum)
+        (select rec.newkey,  an.norma, an.prnum
+        from burnar.vipolnenie_norm an
+        where an.vip_key = rec.key);
+        --источники, к сожалению, тоже пригодятся
+        insert into burnar.zadanie_ist (zad_key,ist)
+        (select rec.newkey, an.ist
+        from burnar.vipolnenie_ist an
+        where an.vip_key = rec.key);
+        --а теперь и строки
+        insert into burnar.zadanie_stroka (zad_key,stroka, prnum)
+        (select rec.newkey, an.stroka, an.prnum
+        from burnar.vipolnenie_stroka an
+        where an.vip_key = rec.key);
+        --ну и просто текст и мы его сохраняем в соотв. таблицу
+        insert into burnar.zadanie_anynm (zad_key,nm)
+        (select rec.newkey, n_m.nm from burnar.vipolnenie_anynm n_m where n_m.vip_key = rec.key);
+end loop;
+  commit;
+
+end ;
+$$
+LANGUAGE 'plpgsql';
+
+ALTER PROCEDURE burnar.copy_vip_to_zad(integer)
+  OWNER TO postgres;
