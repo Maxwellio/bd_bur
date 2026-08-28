@@ -1,0 +1,84 @@
+--Table: public.spr_edizm
+
+--DROP TABLE public.spr_edizm;
+
+CREATE TABLE public.spr_edizm (
+  "key"    numeric(6) NOT NULL PRIMARY KEY,
+  znach    varchar(30) NOT NULL,
+  ops      varchar(100),
+  sprcode  numeric(8),
+  ked      numeric(14,7),
+  grupa    numeric(3),
+  /* Keys */
+  CONSTRAINT spr_edizm_pkey
+    PRIMARY KEY ("key"),
+  /* Foreign keys */
+  CONSTRAINT fk_sprcode1
+    FOREIGN KEY (sprcode)
+    REFERENCES public.common_spr(id)
+);
+
+CREATE UNIQUE INDEX uniqkedgrupa
+  ON public.spr_edizm
+  (ked, grupa);
+
+CREATE TRIGGER trg_spredizm
+  BEFORE UPDATE OR INSERT OR DELETE
+  ON public.spr_edizm
+  FOR EACH ROW
+  EXECUTE PROCEDURE public.ftrg_spredizm();
+
+ALTER TABLE public.spr_edizm
+  OWNER TO postgres;
+
+COMMENT ON TABLE public.spr_edizm
+  IS 'Единицы измерений, системный справочник';
+
+COMMENT ON COLUMN public.spr_edizm.sprcode
+  IS 'код значения';
+
+COMMENT ON COLUMN public.spr_edizm.ked
+  IS 'доля относительно базовой ед.измер СИ (такой же категории)';
+
+COMMENT ON COLUMN public.spr_edizm.grupa
+  IS 'группировка единиц измерения';
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER, TRUNCATE
+  ON public.spr_edizm
+TO postgres;
+
+GRANT SELECT
+  ON public.spr_edizm
+TO buildrig_role;
+
+GRANT SELECT
+  ON public.spr_edizm
+TO exper_light;
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER, TRUNCATE
+  ON public.spr_edizm
+TO burnar_role;
+
+GRANT SELECT
+  ON public.spr_edizm
+TO nkrs_role;
+
+GRANT SELECT
+  ON public.spr_edizm
+TO osvoenie_role;
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER
+  ON public.spr_edizm
+TO depnar_role;
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER
+  ON public.spr_edizm
+TO strapping_role;
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER
+  ON public.spr_edizm
+TO calc_role;
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER
+  ON public.spr_edizm
+TO hos_role;
