@@ -1,0 +1,194 @@
+--Procedure: burnar.vipolnenie_operac_move(bigint, bigint, numeric, bigint, numeric, integer)
+
+--DROP PROCEDURE burnar.vipolnenie_operac_move(bigint, bigint, numeric, bigint, numeric, integer);
+
+CREATE OR REPLACE PROCEDURE burnar.vipolnenie_operac_move
+(
+  IN  akey       bigint,
+  IN  aparent    bigint,
+  IN  aprnum     numeric,
+  IN  newparent  bigint,
+  IN  newprnum   numeric,
+  IN  anarkey    integer
+)
+AS $$
+declare 
+  -- Процедура переносит блоу работ(или одну работу) на новое место в текущем наряде
+  --Akey - key операции
+  --AParent - parent операции
+  --APrnum - текущий номер операции в уровне
+  --NewParent - новый парент для операции
+  --NewPrnum - новый номер операции в новом уровне
+OLT numeric := 0; --тип оперлайфа родителя (для молчливого не выполнения переноса операции, если OLT=81)
+aOPlifetype_where_move burnar.vipolnenie_oper.operlifetype%type:=0;
+aOPlifetype_from_move burnar.vipolnenie_oper.operlifetype%type:=0;
+flag numeric := 0; -- для проверки не происходит ли перенос внутрь самой себя
+pprnum  numeric := 0;
+razdel burnar.vipolnenie_oper.razdel%type; --Раздел 
+parent_razdel  burnar.vipolnenie_oper.razdel%type; --Раздел
+oplifetype burnar.vipolnenie_oper.razdel%type; 
+parent_parent burnar.vipolnenie_oper.parent%type:=0;
+oper burnar.vipolnenie_oper.oper%type;
+rec record;
+begin
+
+if NewParent is not null then
+
+  select zo.oper, zo.key into oper, parent_parent
+  from burnar.vipolnenie_oper zo 
+  where zo.key = NewParent;
+
+  select zo.parent, zo.razdel into parent_parent, parent_razdel
+  from burnar.vipolnenie_oper zo 
+  where zo.key = NewParent;
+  
+else
+  select zo.razdel into razdel
+  from burnar.vipolnenie_oper zo 
+  where zo.key = Akey;
+end if;
+
+
+
+if ((NewParent is null) and (coalesce(razdel, 0) not in (13555,13556,13557,13558,13559,13560,13561,13562,13563,13564,13565,13566))) or
+   ((NewParent is not null) and (oper is not null))
+    or ((parent_parent is null) and (parent_razdel not in (13555,13556,13557,13558,13559,13560,13561,13562,13563,13564,13565,13566))) then
+
+    RAISE EXCEPTION '-20001, Операции можно перемещать только в основные разделы!'; -- нельзя вставлять не в основной блок!
+
+else    
+begin
+/*
+select count(*) into flag  --если есть записи (можно сделать count) значит входит и  перемещение невозможно
+from burnar.vipolnenie_oper t
+where t.key=Akey
+start with t.key=nvl(NewParent,0)
+connect by t.key=prior t.parent;
+*/
+
+WITH RECURSIVE TMP AS (
+                        select t.*
+                        from burnar.vipolnenie_oper t
+                        where t.key = Akey and t.key = coalesce(NewParent,0)
+                        union
+                        select t.*
+                        from burnar.vipolnenie_oper t, tmp 
+                        where tmp.key = t.parent)
+select count(tmp.*) into flag  --если есть записи (можно сделать count) значит входит и  перемещение невозможно
+from tmp;
+
+
+select prnum into pprnum from burnar.vipolnenie_oper where key=akey;
+
+
+if flag >0 then
+   RAISE EXCEPTION '-20001, Нельзя перемещать блоки работ внутрь самих блоков!';
+end if;
+
+--- так как из структуры нельзя выдернуть операцию это надо проверить, ищем тип оперлайфа предка
+if Aparent is not null then
+   select o.operlifetype  into aOPlifetype_from_move from burnar.vipolnenie_oper o where o.key=Aparent;
+end if;
+--- и в другую структуру мы вставить тоже не можем :)
+if NewParent is not null then
+   select o.operlifetype  into aOPlifetype_where_move from burnar.vipolnenie_oper o where o.key=NewParent;
+end if;
+if coalesce(aOPlifetype_where_move,0)<>81 and coalesce(aOPlifetype_from_move,0)<>81 then
+
+  --получаем код оперлайфа родителя
+ if Aparent is not null then
+  select t.operlifetype
+    into OLT
+    from burnar.vipolnenie_oper t
+   where t.key = Aparent;
+  end if;
+  --если родитель не структура
+  if coalesce(OLT,0) <> 81 then
+    --перенос в рамках одной ветки
+    if coalesce(Aparent,0) = coalesce(NewParent,0) then
+      if pprnum > NewPrnum then --перенос вверх
+        if NewParent is not null then
+        update burnar.vipolnenie_oper 
+           set prnum = CASE WHEN prnum = pprnum THEN NewPrnum ELSE prnum + 1 END --decode(prnum, pprnum, NewPrnum, prnum + 1)
+         where parent = NewParent
+           and prnum  between NewPrnum and pprnum
+           and narkey=anarkey;
+        else
+        update burnar.vipolnenie_oper 
+           set prnum = CASE WHEN prnum = pprnum THEN NewPrnum ELSE prnum + 1 END --decode(prnum, pprnum, NewPrnum, prnum + 1)
+         where parent is null and narkey = anarkey
+           and prnum  between NewPrnum and pprnum
+           and narkey=anarkey;
+        end if;
+      else  --перенос вниз
+        if NewParent is not null then
+        update burnar.vipolnenie_oper 
+           set prnum = CASE WHEN prnum = pprnum THEN NewPrnum ELSE prnum - 1 END --decode(prnum, pprnum, NewPrnum, prnum - 1)
+         where parent = NewParent
+           and prnum  between pprnum and NewPrnum
+           and narkey=anarkey;
+        else
+        update burnar.vipolnenie_oper 
+           set prnum = CASE WHEN prnum = pprnum THEN NewPrnum ELSE prnum - 1 END --decode(prnum, pprnum, NewPrnum, prnum - 1)
+         where parent is null and narkey = anarkey
+           and prnum  between pprnum and NewPrnum
+           and narkey=anarkey;
+        end if;
+      end if;
+
+    else  --перенос в другую ветку
+      --сдвигаем в новом уровне PRNUM вниз, чтобы освободить место
+    if  NewParent is not null then
+      update burnar.vipolnenie_oper 
+         set prnum = prnum + 1
+       where parent = NewParent
+         and prnum >= NewPrnum and narkey=anarkey;
+      -- вставляем операцию на новое место
+      update burnar.vipolnenie_oper 
+         set parent = NewParent, prnum = NewPrnum
+       where key = Akey and narkey=anarkey;
+     else
+      update burnar.vipolnenie_oper 
+         set prnum = prnum + 1
+       where parent is null
+         and prnum >= NewPrnum and narkey=anarkey;
+      -- вставляем операцию на новое место
+      update burnar.vipolnenie_oper 
+         set parent = null, prnum = NewPrnum
+       where key = Akey and narkey=anarkey;
+     end if;
+      --перенумеровываем уровень на старом месте
+    if AParent is not null then
+      update burnar.vipolnenie_oper 
+         set prnum = prnum - 1
+       where parent = AParent
+         and prnum >= pprnum and narkey=anarkey;
+    else
+      update burnar.vipolnenie_oper 
+         set prnum = prnum - 1
+       where parent is null and narkey=anarkey
+         and prnum >= pprnum and narkey=anarkey;
+    end if;
+    end if;
+    --сохраняем изменения в базе
+    --работа переносится в наряд первой, меняем дату начала на ту что в наряде
+    if (AParent is not null) and (NewPrnum=1) then
+      update burnar.vipolnenie_oper 
+         set begoperdate=coalesce((select y.begdate from burnar.defnarzad y where y.narkey= anarkey),begoperdate)
+       where key=akey  and narkey=anarkey ;
+    end if;
+
+    commit;
+  end if;
+  else
+ RAISE EXCEPTION '-20001, Нельзя вырезать работы из структур и перемещать в структуры!'; -- нельзя копировать в структуру
+ end if;
+end;
+end if;
+
+end ;
+$$
+LANGUAGE 'plpgsql';
+
+ALTER PROCEDURE burnar.vipolnenie_operac_move(bigint, bigint, numeric, bigint, numeric, integer)
+  OWNER TO postgres;
