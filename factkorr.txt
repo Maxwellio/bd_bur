@@ -1,0 +1,32 @@
+--Table: burnar.factkorr
+
+--DROP TABLE burnar.factkorr;
+
+CREATE TABLE burnar.factkorr (
+  idlife  numeric(7) NOT NULL,
+  norma   varchar(300),
+  fact    varchar(300)
+);
+
+ALTER TABLE burnar.factkorr
+  OWNER TO postgres;
+
+COMMENT ON TABLE burnar.factkorr
+  IS 'зависимости нормативного поля и фактического от вводимого фактического';
+
+COMMENT ON COLUMN burnar.factkorr.idlife
+  IS 'момент реализации операции';
+
+COMMENT ON COLUMN burnar.factkorr.norma
+  IS 'результат нормативного поля (зависимость от введенного значения факта)';
+
+COMMENT ON COLUMN burnar.factkorr.fact
+  IS 'результат фактического поля (зависимость от введенного значения факта)';
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER, TRUNCATE
+  ON burnar.factkorr
+TO postgres;
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER, TRUNCATE
+  ON burnar.factkorr
+TO burnar_role;
