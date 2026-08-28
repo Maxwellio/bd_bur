@@ -1,0 +1,63 @@
+--Table: burnar.zndefnarvipatrib
+
+--DROP TABLE burnar.zndefnarvipatrib;
+
+CREATE TABLE burnar.zndefnarvipatrib (
+  defnar   integer NOT NULL,
+  prnum    numeric(3) NOT NULL,
+  znval    numeric(8),
+  val      numeric(8,4),
+  valstr   varchar(150),
+  parcode  numeric(8) NOT NULL,
+  /* Keys */
+  CONSTRAINT zndefnarvipatrib_pk
+    PRIMARY KEY (defnar, prnum, parcode)
+);
+
+CREATE INDEX nk_vipatrib
+  ON burnar.zndefnarvipatrib
+  (defnar, parcode);
+
+CREATE TRIGGER trg_log_atrib_vip
+  AFTER UPDATE OR INSERT OR DELETE
+  ON burnar.zndefnarvipatrib
+  FOR EACH ROW
+  EXECUTE PROCEDURE burnar.ftrg_log_atrib_vip();
+
+CREATE TRIGGER trg_zndefnarvipatrib_upd_after
+  AFTER UPDATE
+  ON burnar.zndefnarvipatrib
+  FOR EACH ROW
+  EXECUTE PROCEDURE burnar.ftrg_zndefnarvipatrib_upd_after();
+
+ALTER TABLE burnar.zndefnarvipatrib
+  OWNER TO postgres;
+
+COMMENT ON TABLE burnar.zndefnarvipatrib
+  IS 'значения сквозных параметров выполнения';
+
+COMMENT ON COLUMN burnar.zndefnarvipatrib.defnar
+  IS 'ссылка на наряд в целом';
+
+COMMENT ON COLUMN burnar.zndefnarvipatrib.prnum
+  IS 'порядок';
+
+COMMENT ON COLUMN burnar.zndefnarvipatrib.znval
+  IS 'значение дискретное (из общего справочника)';
+
+COMMENT ON COLUMN burnar.zndefnarvipatrib.val
+  IS 'значение непрерывной величины';
+
+COMMENT ON COLUMN burnar.zndefnarvipatrib.valstr
+  IS 'произвольное строковое значение';
+
+COMMENT ON COLUMN burnar.zndefnarvipatrib.parcode
+  IS 'параметр';
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER, TRUNCATE
+  ON burnar.zndefnarvipatrib
+TO postgres;
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER, TRUNCATE
+  ON burnar.zndefnarvipatrib
+TO burnar_role;
