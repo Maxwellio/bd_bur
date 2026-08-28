@@ -1,0 +1,107 @@
+--Table: public.algs
+
+--DROP TABLE public.algs;
+
+CREATE TABLE public.algs (
+  "key"       numeric NOT NULL PRIMARY KEY,
+  nm          varchar(30) NOT NULL,
+  nmfunc      varchar(30) NOT NULL,
+  ops         varchar(2500),
+  izmer_key   numeric,
+  date_state  timestamp without time zone,
+  suffix      numeric,
+  /* Keys */
+  CONSTRAINT algs_pkey
+    PRIMARY KEY ("key"), 
+  CONSTRAINT unq_algnm
+    UNIQUE (nmfunc, izmer_key),
+  /* Foreign keys */
+  CONSTRAINT fk_alg_izmerkey
+    FOREIGN KEY (izmer_key)
+    REFERENCES public.spr_izmer("key")
+);
+
+CREATE TRIGGER trg_algs_del_bef
+  BEFORE DELETE
+  ON public.algs
+  FOR EACH ROW
+  EXECUTE PROCEDURE public.ftrg_algs_del_bef();
+
+CREATE TRIGGER trg_algs_ins_bef
+  BEFORE INSERT
+  ON public.algs
+  FOR EACH ROW
+  EXECUTE PROCEDURE public.ftrg_algs_ins_bef();
+
+CREATE TRIGGER trg_algs_upd_bef
+  BEFORE UPDATE
+  ON public.algs
+  FOR EACH ROW
+  EXECUTE PROCEDURE public.ftrg_algs_upd_bef();
+
+ALTER TABLE public.algs
+  OWNER TO postgres;
+
+COMMENT ON TABLE public.algs
+  IS 'Алгоритмы и их описание';
+
+COMMENT ON COLUMN public.algs."key"
+  IS 'код алгоритма';
+
+COMMENT ON COLUMN public.algs.nm
+  IS 'наименование';
+
+COMMENT ON COLUMN public.algs.nmfunc
+  IS 'название функции, реализующей алгоритм';
+
+COMMENT ON COLUMN public.algs.ops
+  IS 'описание алгоритма (где и для чего он применяется или типа того)';
+
+COMMENT ON COLUMN public.algs.izmer_key
+  IS 'код измерителя';
+
+COMMENT ON COLUMN public.algs.date_state
+  IS 'Дата создания, для сбора статистики';
+
+COMMENT ON COLUMN public.algs.suffix
+  IS 'Суффикс для текущего имени пакета';
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER, TRUNCATE
+  ON public.algs
+TO postgres;
+
+GRANT SELECT
+  ON public.algs
+TO exper_light;
+
+GRANT SELECT
+  ON public.algs
+TO buildrig_role;
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER, TRUNCATE
+  ON public.algs
+TO burnar_role;
+
+GRANT SELECT
+  ON public.algs
+TO nkrs_role;
+
+GRANT SELECT
+  ON public.algs
+TO osvoenie_role;
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER
+  ON public.algs
+TO depnar_role;
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER
+  ON public.algs
+TO strapping_role;
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER
+  ON public.algs
+TO calc_role;
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER
+  ON public.algs
+TO hos_role;
