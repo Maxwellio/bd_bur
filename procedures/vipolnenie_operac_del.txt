@@ -1,0 +1,62 @@
+--Procedure: burnar.vipolnenie_operac_del(bigint, bigint, numeric, integer)
+
+--DROP PROCEDURE burnar.vipolnenie_operac_del(bigint, bigint, numeric, integer);
+
+CREATE OR REPLACE PROCEDURE burnar.vipolnenie_operac_del
+(
+  IN  akey     bigint,
+  IN  aparent  bigint,
+  IN  aprnum   numeric,
+  IN  anarkey  integer
+)
+AS $$
+declare 
+  --процедура удаляет текущий блок работ(операцию),
+  OLT numeric default 0; --тип оперлайфа родителя (для молчливого не выполнения переноса операции, если OLT=81)
+  aOPlifetype_where_del burnar.vipolnenie_oper.operlifetype%type:=0;
+  pprnum  numeric default 0;
+begin
+
+--- так как из структуры нельзя выдернуть операцию это надо проверить, ищем тип оперлайфа предка
+if Aparent is not null then
+   select o.operlifetype  into aOPlifetype_where_del from burnar.vipolnenie_oper o where o.key=Aparent;
+end if;
+
+select prnum into pprnum from burnar.vipolnenie_oper where key=akey;
+
+if coalesce(aOPlifetype_where_del,0)<>81 then
+--получаем код оперлайфа родителя
+  if Aparent is not null then
+  
+  select t.operlifetype
+    into OLT
+    from burnar.vipolnenie_oper t
+   where t.key = Aparent;
+  end if;
+  
+  --если родитель не структура
+  if coalesce(OLT,0) <> 81 then
+    --удаляем ветку
+    delete from burnar.vipolnenie_oper t
+     where t.key =Akey;
+
+    -- перенумеровываем ветку
+    update burnar.vipolnenie_oper t
+       set prnum = prnum - 1
+     where coalesce(t.parent,0) = coalesce(AParent,0)
+       and prnum >= pprnum and t.narkey=anarkey ;
+    -- сохраняем изменения
+--    commit;
+  end if;
+else
+    RAISE EXCEPTION '-20001,Нельзя удалять работы из структуры!'; -- нельзя копировать в структуру
+end if;
+
+
+
+end ;
+$$
+LANGUAGE 'plpgsql';
+
+ALTER PROCEDURE burnar.vipolnenie_operac_del(bigint, bigint, numeric, integer)
+  OWNER TO postgres;
