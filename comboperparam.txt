@@ -1,0 +1,96 @@
+--Table: public.comboperparam
+
+--DROP TABLE public.comboperparam;
+
+CREATE TABLE public.comboperparam (
+  operlifeid  numeric(7) NOT NULL,
+  param       numeric(10) NOT NULL,
+  prnum       numeric(2) NOT NULL,
+  /* Keys */
+  CONSTRAINT comboperparam_pkey
+    PRIMARY KEY (operlifeid, param),
+  /* Foreign keys */
+  CONSTRAINT fk_comboperparam_operlifeid
+    FOREIGN KEY (operlifeid)
+    REFERENCES public.operlife(id), 
+  CONSTRAINT fk_comboperparam_userparam
+    FOREIGN KEY (param)
+    REFERENCES public.user_param("key")
+);
+
+CREATE UNIQUE INDEX pk1
+  ON public.comboperparam
+  (operlifeid, param);
+
+CREATE TRIGGER trg_comboperparam_del_bef
+  BEFORE DELETE
+  ON public.comboperparam
+  FOR EACH ROW
+  EXECUTE PROCEDURE public.ftrg_comboperparam_del_bef();
+
+CREATE TRIGGER trg_comboperparam_ins_bef
+  BEFORE INSERT
+  ON public.comboperparam
+  FOR EACH ROW
+  EXECUTE PROCEDURE public.ftrg_alg_calc2_ins_before();
+
+CREATE TRIGGER trg_comboperparam_upd_bef
+  BEFORE UPDATE
+  ON public.comboperparam
+  FOR EACH ROW
+  EXECUTE PROCEDURE public.ftrg_comboperparam_upd_bef();
+
+ALTER TABLE public.comboperparam
+  OWNER TO postgres;
+
+COMMENT ON TABLE public.comboperparam
+  IS 'Настроечная таблица. Нормообразующие параметры (только для комбинационных)';
+
+COMMENT ON COLUMN public.comboperparam.operlifeid
+  IS 'код интервала жизни операции';
+
+COMMENT ON COLUMN public.comboperparam.param
+  IS 'код нормообразующего параметра';
+
+COMMENT ON COLUMN public.comboperparam.prnum
+  IS 'порядковый номер параметра';
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER, TRUNCATE
+  ON public.comboperparam
+TO postgres;
+
+GRANT SELECT
+  ON public.comboperparam
+TO exper_light;
+
+GRANT SELECT
+  ON public.comboperparam
+TO buildrig_role;
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER, TRUNCATE
+  ON public.comboperparam
+TO burnar_role;
+
+GRANT SELECT
+  ON public.comboperparam
+TO nkrs_role;
+
+GRANT SELECT
+  ON public.comboperparam
+TO osvoenie_role;
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER
+  ON public.comboperparam
+TO depnar_role;
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER
+  ON public.comboperparam
+TO strapping_role;
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER
+  ON public.comboperparam
+TO calc_role;
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER
+  ON public.comboperparam
+TO hos_role;
