@@ -1,0 +1,69 @@
+--Table: public.alg_operlife
+
+--DROP TABLE public.alg_operlife;
+
+CREATE TABLE public.alg_operlife (
+  alg          numeric NOT NULL,
+  id_operlife  numeric NOT NULL,
+  /* Foreign keys */
+  CONSTRAINT fk_alg
+    FOREIGN KEY (alg)
+    REFERENCES public.algs("key")
+    ON DELETE CASCADE, 
+  CONSTRAINT fk_id_operlife
+    FOREIGN KEY (id_operlife)
+    REFERENCES public.operlife(id)
+    ON DELETE CASCADE
+);
+
+ALTER TABLE public.alg_operlife
+  OWNER TO postgres;
+
+COMMENT ON TABLE public.alg_operlife
+  IS 'алгоритмы реализаций операции';
+
+COMMENT ON COLUMN public.alg_operlife.alg
+  IS 'код алгоритма';
+
+COMMENT ON COLUMN public.alg_operlife.id_operlife
+  IS 'код интервала жизни операции';
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER, TRUNCATE
+  ON public.alg_operlife
+TO postgres;
+
+GRANT SELECT
+  ON public.alg_operlife
+TO exper_light;
+
+GRANT SELECT
+  ON public.alg_operlife
+TO buildrig_role;
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER, TRUNCATE
+  ON public.alg_operlife
+TO burnar_role;
+
+GRANT SELECT
+  ON public.alg_operlife
+TO nkrs_role;
+
+GRANT SELECT
+  ON public.alg_operlife
+TO osvoenie_role;
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER
+  ON public.alg_operlife
+TO depnar_role;
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER
+  ON public.alg_operlife
+TO strapping_role;
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER
+  ON public.alg_operlife
+TO calc_role;
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER
+  ON public.alg_operlife
+TO hos_role;
