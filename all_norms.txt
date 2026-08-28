@@ -1,0 +1,70 @@
+--Table: public.all_norms
+
+--DROP TABLE public.all_norms;
+
+CREATE TABLE public.all_norms (
+  normkey  numeric(7) NOT NULL,
+  norma    numeric(10,4) NOT NULL DEFAULT 0,
+  prnum    numeric(2) NOT NULL DEFAULT 1,
+  /* Foreign keys */
+  CONSTRAINT fk_normkey
+    FOREIGN KEY (normkey)
+    REFERENCES public.norms("key")
+    ON DELETE CASCADE
+);
+
+CREATE INDEX ind_all_norms_normkey
+  ON public.all_norms
+  (normkey);
+
+CREATE INDEX nk_all_norms
+  ON public.all_norms
+  (normkey, prnum);
+
+ALTER TABLE public.all_norms
+  OWNER TO postgres;
+
+COMMENT ON COLUMN public.all_norms.normkey
+  IS 'код совокупности норм';
+
+COMMENT ON COLUMN public.all_norms.norma
+  IS 'значение составляющей нормы (компонент вектора cfg_izmer)';
+
+COMMENT ON COLUMN public.all_norms.prnum
+  IS 'порядковый номер';
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER, TRUNCATE
+  ON public.all_norms
+TO postgres;
+
+GRANT SELECT
+  ON public.all_norms
+TO exper_light;
+
+GRANT SELECT
+  ON public.all_norms
+TO buildrig_role;
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER, TRUNCATE
+  ON public.all_norms
+TO burnar_role;
+
+GRANT SELECT
+  ON public.all_norms
+TO nkrs_role;
+
+GRANT SELECT
+  ON public.all_norms
+TO osvoenie_role;
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER
+  ON public.all_norms
+TO depnar_role;
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER
+  ON public.all_norms
+TO strapping_role;
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER
+  ON public.all_norms
+TO hos_role;
