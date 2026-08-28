@@ -1,0 +1,43 @@
+--Function: burnar.getzrazdelstat(numeric)
+
+--DROP FUNCTION burnar.getzrazdelstat(numeric);
+
+CREATE OR REPLACE FUNCTION burnar.getzrazdelstat
+(
+  IN  zkey  numeric
+)
+RETURNS numeric AS
+$$
+DECLARE
+-- PRAGMA AUTONOMOUS_TRANSACTION;
+  Result numeric := 0;
+  razdel numeric;
+begin
+
+select
+( WITH vars(npi) AS (
+   values (array[13555,13556,13557,13558,13559,13560,13561,13562,13563,13564,13565,13566])
+ )
+ SELECT CASE 
+         when o.razdel = ANY(npi) then '1'
+         ELSE '0'
+       End as RS
+ FROM vars) RS
+into result
+from burnar.zadanie_oper o
+where o.key=zkey;
+/*
+ select d.razdel into razdel
+ from zadanie_oper d
+ where d.key = Zkey;
+
+ if razdel in (13555,13556,13557,13558,13559,13560,13561,13562,13563,13564,13565,13566) then  return(1); else return(0);
+ end if;
+*/
+return(result);
+END
+$$
+LANGUAGE 'plpgsql';
+
+ALTER FUNCTION burnar.getzrazdelstat(numeric)
+  OWNER TO postgres;
