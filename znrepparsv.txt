@@ -1,0 +1,98 @@
+--Table: burnar.znrepparsv
+
+--DROP TABLE burnar.znrepparsv;
+
+CREATE TABLE burnar.znrepparsv (
+  defnar      integer NOT NULL,
+  znval       numeric(8),
+  val         numeric(9,3),
+  valstr      varchar(150),
+  repid       integer NOT NULL,
+  parcode     numeric(8) NOT NULL,
+  prnum       numeric(3) NOT NULL,
+  repparname  varchar(20),
+  period_key  integer,
+  /* Keys */
+  CONSTRAINT uk_znrepparsv
+    UNIQUE (defnar, repid, parcode, prnum, period_key),
+  /* Foreign keys */
+  CONSTRAINT fk_defnar6
+    FOREIGN KEY (defnar)
+    REFERENCES burnar.defnar("key")
+    ON DELETE CASCADE, 
+  CONSTRAINT fk_period_key
+    FOREIGN KEY (period_key)
+    REFERENCES burnar.vipolnenie_period("key")
+    ON DELETE CASCADE, 
+  CONSTRAINT fk_repid6
+    FOREIGN KEY (repid)
+    REFERENCES burnar.reports(id)
+    ON DELETE CASCADE
+);
+
+CREATE INDEX nk_znrepparsv1
+  ON burnar.znrepparsv
+  (period_key, repid, parcode);
+
+CREATE TRIGGER trg_znrepparsv_del_after
+  AFTER DELETE
+  ON burnar.znrepparsv
+  FOR EACH ROW
+  EXECUTE PROCEDURE burnar.ftrg_znrepparsv_del_after();
+
+CREATE TRIGGER trg_znrepparsv_ins_after
+  AFTER INSERT
+  ON burnar.znrepparsv
+  FOR EACH ROW
+  EXECUTE PROCEDURE burnar.ftrg_znrepparsv_ins_after();
+
+CREATE TRIGGER trg_znrepparsv_up_after
+  AFTER UPDATE
+  ON burnar.znrepparsv
+  FOR EACH ROW
+  EXECUTE PROCEDURE burnar.ftrg_znrepparsv_up_after();
+
+ALTER TABLE burnar.znrepparsv
+  OWNER TO postgres;
+
+COMMENT ON TABLE burnar.znrepparsv
+  IS 'значения параметров отчетов конкретных нарядов в части выполнения';
+
+COMMENT ON COLUMN burnar.znrepparsv.defnar
+  IS 'код наряда';
+
+COMMENT ON COLUMN burnar.znrepparsv.znval
+  IS 'значение дискретное (из общего справочника)';
+
+COMMENT ON COLUMN burnar.znrepparsv.val
+  IS 'значение непрерывной величины';
+
+COMMENT ON COLUMN burnar.znrepparsv.valstr
+  IS 'произвольное строковое значение';
+
+COMMENT ON COLUMN burnar.znrepparsv.repid
+  IS 'отчет';
+
+COMMENT ON COLUMN burnar.znrepparsv.parcode
+  IS 'код параметра';
+
+COMMENT ON COLUMN burnar.znrepparsv.prnum
+  IS 'порядок';
+
+COMMENT ON COLUMN burnar.znrepparsv.repparname
+  IS 'имя связанного входного параметра отчета';
+
+COMMENT ON COLUMN burnar.znrepparsv.period_key
+  IS 'код периода выполнения';
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER, TRUNCATE
+  ON burnar.znrepparsv
+TO postgres;
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER, TRUNCATE
+  ON burnar.znrepparsv
+TO burnar_role;
+
+GRANT SELECT
+  ON burnar.znrepparsv
+TO out_asubur;
