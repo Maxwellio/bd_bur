@@ -1,0 +1,61 @@
+--Table: public.normstr
+
+--DROP TABLE public.normstr;
+
+CREATE TABLE public.normstr (
+  norm_id  numeric NOT NULL,
+  stroka   varchar(1024) NOT NULL,
+  /* Foreign keys */
+  CONSTRAINT fk_normkey1
+    FOREIGN KEY (norm_id)
+    REFERENCES public.norms("key")
+    ON DELETE CASCADE
+);
+
+ALTER TABLE public.normstr
+  OWNER TO postgres;
+
+COMMENT ON TABLE public.normstr
+  IS 'Таблица хранения произвольной строки для конкретной нормы';
+
+COMMENT ON COLUMN public.normstr.norm_id
+  IS 'Код нормы';
+
+COMMENT ON COLUMN public.normstr.stroka
+  IS 'Хранимая строка';
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER, TRUNCATE
+  ON public.normstr
+TO postgres;
+
+GRANT SELECT
+  ON public.normstr
+TO exper_light;
+
+GRANT SELECT
+  ON public.normstr
+TO buildrig_role;
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER, TRUNCATE
+  ON public.normstr
+TO burnar_role;
+
+GRANT SELECT
+  ON public.normstr
+TO nkrs_role;
+
+GRANT SELECT
+  ON public.normstr
+TO osvoenie_role;
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER
+  ON public.normstr
+TO depnar_role;
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER
+  ON public.normstr
+TO strapping_role;
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER
+  ON public.normstr
+TO hos_role;
