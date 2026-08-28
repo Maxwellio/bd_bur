@@ -1,0 +1,81 @@
+--Table: public.sbor_norm
+
+--DROP TABLE public.sbor_norm;
+
+CREATE TABLE public.sbor_norm (
+  key_norm  numeric(7) NOT NULL,
+  zndparam  numeric(10),
+  prnum     numeric(2) NOT NULL,
+  /* Foreign keys */
+  CONSTRAINT fk_keynorm
+    FOREIGN KEY (key_norm)
+    REFERENCES public.norms("key")
+    ON DELETE CASCADE
+);
+
+CREATE INDEX nk_sbor_norm
+  ON public.sbor_norm
+  (key_norm, zndparam);
+
+CREATE INDEX nk_sbor_norm1
+  ON public.sbor_norm
+  (zndparam, prnum, key_norm);
+
+CREATE UNIQUE INDEX pk_mkey
+  ON public.sbor_norm
+  (key_norm, zndparam, prnum);
+
+ALTER TABLE public.sbor_norm
+  OWNER TO postgres;
+
+COMMENT ON TABLE public.sbor_norm
+  IS 'Группы сборки норм';
+
+COMMENT ON COLUMN public.sbor_norm.key_norm
+  IS 'код группы сборки нормы';
+
+COMMENT ON COLUMN public.sbor_norm.zndparam
+  IS 'код значения нормообразующего параметра';
+
+COMMENT ON COLUMN public.sbor_norm.prnum
+  IS 'порядковый номер значения параметра';
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER, TRUNCATE
+  ON public.sbor_norm
+TO postgres;
+
+GRANT SELECT
+  ON public.sbor_norm
+TO exper_light;
+
+GRANT SELECT
+  ON public.sbor_norm
+TO buildrig_role;
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER, TRUNCATE
+  ON public.sbor_norm
+TO burnar_role;
+
+GRANT SELECT
+  ON public.sbor_norm
+TO nkrs_role;
+
+GRANT SELECT
+  ON public.sbor_norm
+TO osvoenie_role;
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER
+  ON public.sbor_norm
+TO depnar_role;
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER
+  ON public.sbor_norm
+TO strapping_role;
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER
+  ON public.sbor_norm
+TO calc_role;
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER
+  ON public.sbor_norm
+TO hos_role;
