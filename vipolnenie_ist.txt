@@ -1,0 +1,37 @@
+--Table: burnar.vipolnenie_ist
+
+--DROP TABLE burnar.vipolnenie_ist;
+
+CREATE TABLE burnar.vipolnenie_ist (
+  vip_key  bigint NOT NULL,
+  ist      numeric NOT NULL,
+  /* Foreign keys */
+  CONSTRAINT fk_vipolnenieoper2
+    FOREIGN KEY (vip_key)
+    REFERENCES burnar.vipolnenie_oper("key")
+    ON DELETE CASCADE
+);
+
+CREATE INDEX vipolnenie_ist_index01
+  ON burnar.vipolnenie_ist
+  (vip_key);
+
+ALTER TABLE burnar.vipolnenie_ist
+  OWNER TO postgres;
+
+COMMENT ON TABLE burnar.vipolnenie_ist
+  IS '»сточники операций выполнени¤';
+
+COMMENT ON COLUMN burnar.vipolnenie_ist.vip_key
+  IS 'код строки нар¤да';
+
+COMMENT ON COLUMN burnar.vipolnenie_ist.ist
+  IS '»сточник нормировани¤';
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER, TRUNCATE
+  ON burnar.vipolnenie_ist
+TO postgres;
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER, TRUNCATE
+  ON burnar.vipolnenie_ist
+TO burnar_role;
