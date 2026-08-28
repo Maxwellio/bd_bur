@@ -1,0 +1,32 @@
+--Table: burnar.vipolnenie_stroka
+
+--DROP TABLE burnar.vipolnenie_stroka;
+
+CREATE TABLE burnar.vipolnenie_stroka (
+  vip_key  bigint NOT NULL,
+  stroka   varchar(1024) NOT NULL,
+  prnum    numeric(2) NOT NULL,
+  /* Foreign keys */
+  CONSTRAINT fk_vipolnenieoper6
+    FOREIGN KEY (vip_key)
+    REFERENCES burnar.vipolnenie_oper("key")
+    ON DELETE CASCADE
+);
+
+CREATE INDEX id_vipolnenie_stroka
+  ON burnar.vipolnenie_stroka
+  (vip_key, prnum);
+
+ALTER TABLE burnar.vipolnenie_stroka
+  OWNER TO postgres;
+
+COMMENT ON TABLE burnar.vipolnenie_stroka
+  IS 'возвращаемые строки операций выполнения';
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER, TRUNCATE
+  ON burnar.vipolnenie_stroka
+TO postgres;
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER, TRUNCATE
+  ON burnar.vipolnenie_stroka
+TO burnar_role;
