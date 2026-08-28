@@ -1,0 +1,44 @@
+--Table: burnar.vipolnenie_param
+
+--DROP TABLE burnar.vipolnenie_param;
+
+CREATE TABLE burnar.vipolnenie_param (
+  vip_key  bigint NOT NULL,
+  parcode  numeric NOT NULL,
+  znach    numeric(16,4),
+  /* Keys */
+  CONSTRAINT vipolnenie_param_index01
+    PRIMARY KEY (vip_key, parcode),
+  /* Foreign keys */
+  CONSTRAINT fk_vipolnenieoper4
+    FOREIGN KEY (vip_key)
+    REFERENCES burnar.vipolnenie_oper("key")
+    ON DELETE CASCADE
+);
+
+ALTER TABLE burnar.vipolnenie_param
+  OWNER TO postgres;
+
+COMMENT ON TABLE burnar.vipolnenie_param
+  IS 'Параметры операций выполнения';
+
+COMMENT ON COLUMN burnar.vipolnenie_param.vip_key
+  IS 'Код строки наряда';
+
+COMMENT ON COLUMN burnar.vipolnenie_param.parcode
+  IS 'Код параметра из Экспера';
+
+COMMENT ON COLUMN burnar.vipolnenie_param.znach
+  IS 'Значение параметра ';
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER, TRUNCATE
+  ON burnar.vipolnenie_param
+TO postgres;
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER, TRUNCATE
+  ON burnar.vipolnenie_param
+TO burnar_role;
+
+GRANT SELECT
+  ON burnar.vipolnenie_param
+TO out_asubur;
