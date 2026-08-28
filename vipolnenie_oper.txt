@@ -1,0 +1,168 @@
+--Table: burnar.vipolnenie_oper
+
+--DROP TABLE burnar.vipolnenie_oper;
+
+CREATE TABLE burnar.vipolnenie_oper (
+  "key"             bigint NOT NULL PRIMARY KEY,
+  parent            bigint,
+  oper              numeric(7),
+  operlifeid        numeric(7),
+  begoperdate       timestamp without time zone,
+  prnum             numeric(5) NOT NULL,
+  whowork           integer,
+  worktype          integer,
+  razdel            numeric(8),
+  narkey            integer NOT NULL,
+  colorsel          numeric NOT NULL DEFAULT 0,
+  volume            numeric(5,2),
+  locked            numeric(1),
+  operlifetype      numeric(7),
+  period            integer,
+  operlifetypeoper  numeric,
+  editdate          numeric(1),
+  priznak           numeric(1) NOT NULL DEFAULT 0,
+  zadoperkey        numeric(7),
+  tipbur            numeric,
+  /* Keys */
+  CONSTRAINT pk_keyvipolnenie_oper
+    PRIMARY KEY ("key"),
+  /* Foreign keys */
+  CONSTRAINT fk_narkey8
+    FOREIGN KEY (narkey)
+    REFERENCES burnar.defnarvip(narkey)
+    ON DELETE CASCADE, 
+  CONSTRAINT fk_parentop2
+    FOREIGN KEY (parent)
+    REFERENCES burnar.vipolnenie_oper("key")
+    ON DELETE CASCADE, 
+  CONSTRAINT fk_period
+    FOREIGN KEY (period)
+    REFERENCES burnar.vipolnenie_period("key")
+    ON DELETE SET NULL, 
+  CONSTRAINT fk_workerz4
+    FOREIGN KEY (whowork)
+    REFERENCES burnar.spr_workers("key"), 
+  CONSTRAINT fk_worktype8
+    FOREIGN KEY (worktype)
+    REFERENCES burnar.spr_worktype(id)
+);
+
+CREATE INDEX ni_parentv
+  ON burnar.vipolnenie_oper
+  (parent);
+
+CREATE INDEX nk_period
+  ON burnar.vipolnenie_oper
+  (period);
+
+CREATE INDEX nk_vip_oper_key
+  ON burnar.vipolnenie_oper
+  (narkey, "key");
+
+CREATE INDEX nk_vip_oper_parent
+  ON burnar.vipolnenie_oper
+  (narkey, parent);
+
+CREATE INDEX nk_vipolnenie
+  ON burnar.vipolnenie_oper
+  (narkey, period, "key", operlifetypeoper, oper);
+
+CREATE INDEX vipolnenie_oper_index01
+  ON burnar.vipolnenie_oper
+  (narkey);
+
+CREATE TRIGGER trg_log_oper_vip
+  AFTER UPDATE OR INSERT OR DELETE
+  ON burnar.vipolnenie_oper
+  FOR EACH ROW
+  EXECUTE PROCEDURE burnar.ftrg_log_oper_vip();
+
+CREATE TRIGGER trg_vipolnenie_oper
+  BEFORE UPDATE OR DELETE
+  ON burnar.vipolnenie_oper
+  FOR EACH ROW
+  EXECUTE PROCEDURE burnar.ftrg_vipolnenie_oper();
+
+CREATE TRIGGER trg_vipolnenie_oper_del
+  BEFORE DELETE
+  ON burnar.vipolnenie_oper
+  FOR EACH ROW
+  EXECUTE PROCEDURE burnar.ftrg_vipolnenie_oper_del();
+
+ALTER TABLE burnar.vipolnenie_oper
+  OWNER TO postgres;
+
+COMMENT ON TABLE burnar.vipolnenie_oper
+  IS 'Все операции выполнения';
+
+COMMENT ON COLUMN burnar.vipolnenie_oper."key"
+  IS 'код строки';
+
+COMMENT ON COLUMN burnar.vipolnenie_oper.parent
+  IS 'родитель строки';
+
+COMMENT ON COLUMN burnar.vipolnenie_oper.oper
+  IS 'код операции';
+
+COMMENT ON COLUMN burnar.vipolnenie_oper.operlifeid
+  IS 'код оперлайфа';
+
+COMMENT ON COLUMN burnar.vipolnenie_oper.begoperdate
+  IS 'дата начала действия операции';
+
+COMMENT ON COLUMN burnar.vipolnenie_oper.prnum
+  IS 'порядковый номер операции внутри своего уровня';
+
+COMMENT ON COLUMN burnar.vipolnenie_oper.whowork
+  IS 'кто будет выполнять работу (какая бригада или сила)';
+
+COMMENT ON COLUMN burnar.vipolnenie_oper.worktype
+  IS 'Тип работы';
+
+COMMENT ON COLUMN burnar.vipolnenie_oper.razdel
+  IS 'код раздела каталога';
+
+COMMENT ON COLUMN burnar.vipolnenie_oper.narkey
+  IS 'код наряда';
+
+COMMENT ON COLUMN burnar.vipolnenie_oper.colorsel
+  IS 'цвет выделения работы';
+
+COMMENT ON COLUMN burnar.vipolnenie_oper.volume
+  IS 'объем работы';
+
+COMMENT ON COLUMN burnar.vipolnenie_oper.locked
+  IS 'признак блокировки работы';
+
+COMMENT ON COLUMN burnar.vipolnenie_oper.operlifetype
+  IS 'тип (способ) нормообразования';
+
+COMMENT ON COLUMN burnar.vipolnenie_oper.period
+  IS 'учетный период';
+
+COMMENT ON COLUMN burnar.vipolnenie_oper.operlifetypeoper
+  IS 'тип работы в проекте';
+
+COMMENT ON COLUMN burnar.vipolnenie_oper.editdate
+  IS 'менялась ли дата null/0 - не менялась 1 - менялась';
+
+COMMENT ON COLUMN burnar.vipolnenie_oper.priznak
+  IS '0 - обычная работа, 1 - доп.работа';
+
+COMMENT ON COLUMN burnar.vipolnenie_oper.zadoperkey
+  IS 'Код операции по заданию(для синхронизации работ)';
+
+COMMENT ON COLUMN burnar.vipolnenie_oper.tipbur
+  IS 'Тип бурения (1- Направление, 2-Кондуктор, 3-Тех колонна, 4-Экспл.Колонна, 5-Хвостовик)';
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER, TRUNCATE
+  ON burnar.vipolnenie_oper
+TO postgres;
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER, TRUNCATE
+  ON burnar.vipolnenie_oper
+TO burnar_role;
+
+GRANT SELECT
+  ON burnar.vipolnenie_oper
+TO out_asubur;
