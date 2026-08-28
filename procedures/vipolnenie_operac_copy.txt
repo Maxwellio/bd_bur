@@ -1,0 +1,180 @@
+--Procedure: burnar.vipolnenie_operac_copy(bigint, bigint, bigint, numeric, integer)
+
+--DROP PROCEDURE burnar.vipolnenie_operac_copy(bigint, bigint, bigint, numeric, integer);
+
+CREATE OR REPLACE PROCEDURE burnar.vipolnenie_operac_copy
+(
+  IN  key_oper            bigint,
+  IN  parent_oper         bigint,
+  IN  aparent_where_copy  bigint,
+  IN  aprnum_where_copy   numeric,
+  IN  anarkey             integer
+)
+AS $$
+declare 
+aOPlifetype_where_copy burnar.vipolnenie_oper.operlifetype%type:=0;
+aOPlifetype_from_copy burnar.vipolnenie_oper.operlifetype%type:=0;
+razdel burnar.vipolnenie_oper.razdel%type; --Раздел 
+parent_razdel  burnar.vipolnenie_oper.razdel%type; --Раздел
+oplifetype burnar.vipolnenie_oper.razdel%type; 
+parent_parent burnar.vipolnenie_oper.parent%type:=0;
+oper burnar.vipolnenie_oper.oper%type;
+rec record;
+begin
+
+if aparent_where_copy is not null then
+
+  select zo.oper, zo.key into oper, parent_parent
+  from burnar.vipolnenie_oper zo 
+  where zo.key = aparent_where_copy;
+
+  select zo.parent, zo.razdel into parent_parent, parent_razdel
+  from burnar.vipolnenie_oper zo 
+  where zo.key = aparent_where_copy;
+  
+  
+end if;
+if ((aparent_where_copy is null) and (coalesce(razdel, 0) not in (13555,13556,13557,13558,13559,13560,13561,13562,13563,13564,13565,13566))) or
+   ((aparent_where_copy is not null) and (oper is not null))
+    or ((parent_parent is null) and (parent_razdel not in (13555,13556,13557,13558,13559,13560,13561,13562,13563,13564,13565,13566))) then
+
+    RAISE EXCEPTION '-20001, Операции можно копировать только в основные разделы!'; -- нельзя вставлять не в основной блок!
+
+else    
+begin
+--- так как из структуры нельзя выдернуть операцию это надо проверить, ищем тип оперлайфа предка
+if parent_oper is not null then
+select o.operlifetype  into aOPlifetype_from_copy from burnar.vipolnenie_oper o where o.key=parent_oper;
+end if;
+--- и в другую структуру мы вставить тоже не можем :)
+if aparent_where_copy is not null then
+select o.operlifetype  into aOPlifetype_where_copy from burnar.vipolnenie_oper o where o.key=aparent_where_copy;
+end if;
+if coalesce(aOPlifetype_where_copy,0)<>81 and coalesce(aOPlifetype_from_copy,0)<>81 then
+
+      --сдвигаем нумерацию внутри уровня для добавления операции/блока
+     if aparent_where_copy is not null then
+      update burnar.vipolnenie_oper r
+         set prnum = prnum + 1
+       where r.parent =aparent_where_copy  and narkey=anarkey
+        and prnum >= aPrnum_where_copy;
+     end if;
+
+     if aparent_where_copy  is null then
+      update burnar.vipolnenie_oper r
+         set r.prnum = r.prnum + 1
+       where r.parent is null and narkey=anarkey
+        and r.prnum >= aPrnum_where_copy;
+     end if;
+
+---основной цикл по поддреву копируемому
+for rec in  (select q.* from
+             (with recursive tmp as(
+                                    select burnar.seq_return() newkey,
+                                           null::integer as newparent, 
+
+                                           o.*, 
+                                           ARRAY[(row_number() OVER (PARTITION BY o.parent
+                                           ORDER BY o.prnum))::integer] AS ord2
+                                    from burnar.vipolnenie_oper o
+                                    where o.key = key_oper
+                                    union all
+                                    select burnar.seq_return() newkey,
+                                           tmp.newkey::integer as newparent, 
+                                           o.*,
+                                           (tmp.ord2 || ARRAY[(row_number() OVER (PARTITION BY o.parent
+                                           ORDER BY o.prnum))::integer]) AS ord2
+                                    from tmp, burnar.vipolnenie_oper o
+                                    where tmp.key=o.parent
+                                    )
+                                    select tmp.* from tmp order by ord2) q)
+/*
+( (select prior q.newkey newparent,q.* from (
+select
+seq_return newkey, p.*
+from vipolnenie_oper p
+start with p.key = key_oper
+connect by prior p.key=p.parent order siblings by p.prnum )q
+start with q.key = key_oper
+connect by prior q.key = q.parent order siblings by q.prnum))
+*/
+loop
+
+      --добавляем операцию в vipolnenie_oper
+      insert into burnar.vipolnenie_oper 
+        (key,
+         parent,
+         oper,
+         operlifeid,
+         begoperdate,
+         prnum,
+         whowork,
+         worktype,
+         razdel,
+         narkey,
+         colorsel,
+         volume,
+         locked,
+         operlifetype,
+         operlifetypeoper
+         )
+      values
+        ( rec.newkey,
+          coalesce(rec.newparent,aparent_where_copy),
+          rec.oper,
+          rec.operlifeid,
+          rec.begoperdate,
+--          decode (rec.key,key_oper,aPrnum_where_copy, rec.prnum),
+          CASE WHEN rec.key = key_oper THEN aPrnum_where_copy ELSE rec.prnum END,
+          rec.whowork,
+          rec.worktype,
+          rec.razdel,
+          rec.narkey,
+          0, --здесь можно для скопированных работ сразу цвет прицепить :)
+          rec.volume, --объем надо искать по дереву САПТП, если он тебе нужен добывай его сам
+          0,
+          rec.operlifetype,
+          rec.operlifetypeoper
+         );
+
+    --саму операцию добавили теперь надо всее описание прокопировать :)
+    --начинаем :)
+      -- параметры нам нужны
+          insert into burnar.vipolnenie_param (vip_key,parcode,znach)
+          (select rec.newkey, p.parcode, p.znach
+           from burnar.vipolnenie_param p
+           where p.vip_key=rec.key);
+      -- нормы тоже не лишние
+        insert into burnar.vipolnenie_norm (vip_key,norma,prnum)
+        (select rec.newkey,  an.norma, an.prnum
+        from burnar.vipolnenie_norm an
+        where an.vip_key=rec.key);
+        --источники, к сожалению, тоже пригодятся
+        insert into burnar.vipolnenie_ist (vip_key,ist)
+        (select rec.newkey, an.ist
+        from burnar.vipolnenie_ist an
+        where an.vip_key=rec.key);        
+        --а теперь и строки
+        insert into burnar.vipolnenie_stroka (vip_key,stroka, prnum)
+        (select rec.newkey, an.stroka, an.prnum
+        from burnar.vipolnenie_stroka an
+        where an.vip_key=rec.key);
+
+        --ну и просто текст и мы его сохраняем в соотв. таблицу
+        insert into burnar.vipolnenie_anynm (vip_key,nm)
+        (select rec.newkey, n_m.nm from burnar.vipolnenie_anynm n_m where n_m.vip_key=rec.key);
+
+end loop;
+ else
+ RAISE EXCEPTION '-20001, Нельзя копировать работы из структур и вставлять в структуры!'; -- нельзя копировать в структуру
+ end if;
+commit;
+end;
+end if;
+
+end ;
+$$
+LANGUAGE 'plpgsql';
+
+ALTER PROCEDURE burnar.vipolnenie_operac_copy(bigint, bigint, bigint, numeric, integer)
+  OWNER TO postgres;
