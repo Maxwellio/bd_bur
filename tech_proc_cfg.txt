@@ -1,0 +1,98 @@
+--Table: public.tech_proc_cfg
+
+--DROP TABLE public.tech_proc_cfg;
+
+CREATE TABLE public.tech_proc_cfg (
+  id      numeric NOT NULL,
+  parent  numeric NOT NULL,
+  morder  numeric(3) NOT NULL,
+  volume  numeric(12,5) DEFAULT 1,
+  "key"   bigserial NOT NULL,
+  /* Foreign keys */
+  CONSTRAINT fk_id
+    FOREIGN KEY (id)
+    REFERENCES public.operlife(id)
+    ON DELETE CASCADE, 
+  CONSTRAINT fk_parent
+    FOREIGN KEY (parent)
+    REFERENCES public.operlife(id)
+    ON DELETE CASCADE
+);
+
+CREATE INDEX id_unq
+  ON public.tech_proc_cfg
+  (id);
+
+CREATE INDEX indx_tech_proc_cfg_parent
+  ON public.tech_proc_cfg
+  (parent);
+
+CREATE TRIGGER tech_proc_cfg_del_before
+  BEFORE DELETE
+  ON public.tech_proc_cfg
+  FOR EACH ROW
+  EXECUTE PROCEDURE public.ftrg_tech_proc_cfg_del_before();
+
+CREATE TRIGGER tech_proc_cfg_ins_before
+  BEFORE INSERT
+  ON public.tech_proc_cfg
+  FOR EACH ROW
+  EXECUTE PROCEDURE public.ftrg_tech_proc_cfg_ins_before();
+
+ALTER TABLE public.tech_proc_cfg
+  OWNER TO postgres;
+
+COMMENT ON TABLE public.tech_proc_cfg
+  IS 'Конфигуратор типовых техпроцессов (структура, кто куда входит)';
+
+COMMENT ON COLUMN public.tech_proc_cfg.id
+  IS 'кто входит (код из таблицы жизни операции)';
+
+COMMENT ON COLUMN public.tech_proc_cfg.parent
+  IS 'в кого входит (родитель,код из таблицы жизни операции)';
+
+COMMENT ON COLUMN public.tech_proc_cfg.morder
+  IS 'очередность внутри своего уровня';
+
+COMMENT ON COLUMN public.tech_proc_cfg.volume
+  IS 'объём';
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER, TRUNCATE
+  ON public.tech_proc_cfg
+TO postgres;
+
+GRANT SELECT
+  ON public.tech_proc_cfg
+TO exper_light;
+
+GRANT SELECT
+  ON public.tech_proc_cfg
+TO buildrig_role;
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER, TRUNCATE
+  ON public.tech_proc_cfg
+TO burnar_role;
+
+GRANT SELECT
+  ON public.tech_proc_cfg
+TO nkrs_role;
+
+GRANT SELECT
+  ON public.tech_proc_cfg
+TO osvoenie_role;
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER
+  ON public.tech_proc_cfg
+TO depnar_role;
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER
+  ON public.tech_proc_cfg
+TO strapping_role;
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER
+  ON public.tech_proc_cfg
+TO calc_role;
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER
+  ON public.tech_proc_cfg
+TO hos_role;
