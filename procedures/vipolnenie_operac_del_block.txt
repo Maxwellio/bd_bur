@@ -1,0 +1,117 @@
+--Procedure: burnar.vipolnenie_operac_del_block(bigint, bigint, numeric, integer)
+
+--DROP PROCEDURE burnar.vipolnenie_operac_del_block(bigint, bigint, numeric, integer);
+
+CREATE OR REPLACE PROCEDURE burnar.vipolnenie_operac_del_block
+(
+  IN  akey     bigint,
+  IN  aparent  bigint,
+  IN  aprnum   numeric,
+  IN  anarkey  integer
+)
+AS $$
+declare 
+  -- Процедура удаляет блок из задания
+  OLT  numeric := 0;
+  cnt  numeric := 0;
+  cnt1 numeric := 0;
+  i    numeric := 0;
+  --тип оперлайфа родителя (для молчливого не выполнения переноса операции, если OLT=81)
+  aOPlifetype_where_del burnar.vipolnenie_oper.operlifetype%type := 0;
+  razdel burnar.vipolnenie_oper.razdel%type;  
+begin
+
+select zo.razdel into razdel 
+from burnar.vipolnenie_oper zo 
+where zo.key = Akey;
+
+if razdel in (13555,13556,13557,13558,13559,13560,13561,13562,13563,13564,13565,13566) then
+RAISE EXCEPTION '-20001, Невозможно удалить основной блок!'; -- нельзя вставлять не в основной блок!
+else
+begin
+
+  --- так как из структуры нельзя выдернуть операцию это надо проверить, ищем тип оперлайфа предка
+  if Aparent is not null then
+    select operlifetype
+      into aOPlifetype_where_del
+      from burnar.vipolnenie_oper 
+     where key = Aparent;
+  end if;
+  if coalesce(aOPlifetype_where_del, 0) <> 81 then
+    --получаем код оперлайфа родителя
+    if Aparent is not null then
+      select t.operlifetype
+        into OLT
+        from burnar.vipolnenie_oper t
+       where t.key = Aparent;
+    end if;
+    --если родитель не структура
+    if coalesce(OLT, 0) <> 81 then
+      select count(t.prnum)
+        into cnt
+        from burnar.vipolnenie_oper t
+       where t.narkey = anarkey
+         and t.parent = Akey;
+      if cnt > 0 then
+        select max(t.prnum)
+          into cnt1
+          from burnar.vipolnenie_oper t
+         where t.narkey = anarkey
+           and t.parent = Akey;
+        update burnar.vipolnenie_oper 
+           set prnum = prnum + aprnum - 1
+         where parent = akey
+           and narkey = anarkey;
+        select count(t.prnum)
+          into i
+          from burnar.vipolnenie_oper t
+         where t.narkey = anarkey
+           and t.parent = Akey;
+
+        if Aparent is not null then
+          update burnar.vipolnenie_oper t
+             set t.prnum = t.prnum - 1 + cnt
+           where t.narkey = anarkey
+             and t.parent = aparent
+             and t.prnum > aprnum;
+        else
+          update burnar.vipolnenie_oper t
+             set t.prnum = t.prnum - 1 + cnt
+           where t.narkey = anarkey
+             and t.parent is null
+             and t.prnum > aprnum;
+        end if;
+
+        update burnar.vipolnenie_oper t
+           set t.parent = Aparent
+         where t.narkey = anarkey
+           and t.parent = Akey;
+
+        delete from burnar.vipolnenie_oper t where t.key = Akey;
+
+      else
+
+        update burnar.vipolnenie_oper 
+           set prnum = prnum - 1 -- decode(prnum, Aprnum,prnum + 1)
+         where --parent =Aparent and
+         narkey = anarkey
+         and prnum > Aprnum --+ 1 --between NewPrnum and Aprnum
+         and narkey = anarkey;
+        delete from burnar.vipolnenie_oper t where t.key = Akey;
+      end if;
+      -- сохраняем изменения
+--      commit;
+    end if;
+  else
+    RAISE EXCEPTION '-20001,
+                            Нельзя удалять работы из структуры!'; -- нельзя копировать в структуру
+  end if;
+end;
+end if;  
+
+end ;
+$$
+LANGUAGE 'plpgsql';
+
+ALTER PROCEDURE burnar.vipolnenie_operac_del_block(bigint, bigint, numeric, integer)
+  OWNER TO postgres;
