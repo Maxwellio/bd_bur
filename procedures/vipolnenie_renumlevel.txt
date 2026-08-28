@@ -1,0 +1,30 @@
+--Procedure: burnar.vipolnenie_renumlevel(bigint, integer)
+
+--DROP PROCEDURE burnar.vipolnenie_renumlevel(bigint, integer);
+
+CREATE OR REPLACE PROCEDURE burnar.vipolnenie_renumlevel
+(
+  IN  aparent  bigint,
+  IN  anarkey  integer
+)
+AS $$
+declare 
+--процедура перенумерует блок работ, где Parent= AParent
+i numeric:=0;
+rec record;
+begin
+
+  for rec in (select * from burnar.vipolnenie_oper t where coalesce(t.parent,0) = coalesce(AParent,0) and t.narkey = anarkey order by t.prnum, t.begoperdate)
+    loop
+      i:=i+1;
+      update burnar.vipolnenie_oper
+        set prnum=i
+        where key=rec.key;
+    end loop;
+
+end ;
+$$
+LANGUAGE 'plpgsql';
+
+ALTER PROCEDURE burnar.vipolnenie_renumlevel(bigint, integer)
+  OWNER TO postgres;
