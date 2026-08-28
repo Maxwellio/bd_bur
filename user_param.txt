@@ -1,0 +1,113 @@
+--Table: public.user_param
+
+--DROP TABLE public.user_param;
+
+CREATE TABLE public.user_param (
+  "key"    numeric(10) NOT NULL PRIMARY KEY,
+  nm       varchar(500) NOT NULL,
+  "type"   numeric(1) NOT NULL DEFAULT 1,
+  sprcode  numeric(8),
+  edizm    numeric(6),
+  kodpar   varchar(9),
+  shortnm  varchar(100),
+  /* Keys */
+  CONSTRAINT user_param_pkey
+    PRIMARY KEY ("key"),
+  /* Foreign keys */
+  CONSTRAINT edizm
+    FOREIGN KEY (edizm)
+    REFERENCES public.spr_edizm("key")
+    ON DELETE SET NULL, 
+  CONSTRAINT fk_comspr
+    FOREIGN KEY (sprcode)
+    REFERENCES public.common_spr(id)
+);
+
+CREATE UNIQUE INDEX uk_kodpar
+  ON public.user_param
+  (kodpar);
+
+CREATE TRIGGER trg_userparam_del_bef
+  BEFORE DELETE
+  ON public.user_param
+  FOR EACH ROW
+  EXECUTE PROCEDURE public.ftrg_userparam_del_bef();
+
+CREATE TRIGGER trg_userparam_ins_before
+  BEFORE INSERT
+  ON public.user_param
+  FOR EACH ROW
+  EXECUTE PROCEDURE public.ftrg_userparam_ins_before();
+
+CREATE TRIGGER trg_userparam_upd_bef
+  BEFORE UPDATE
+  ON public.user_param
+  FOR EACH ROW
+  EXECUTE PROCEDURE public.ftrg_userparam_upd_bef();
+
+ALTER TABLE public.user_param
+  OWNER TO postgres;
+
+COMMENT ON TABLE public.user_param
+  IS 'Входные параметры, применяемые в нормировании';
+
+COMMENT ON COLUMN public.user_param."key"
+  IS 'внутрисистемный код';
+
+COMMENT ON COLUMN public.user_param.nm
+  IS 'полное наименование параметра';
+
+COMMENT ON COLUMN public.user_param."type"
+  IS 'тип параметра (1-непрерывный;2-дискретный)';
+
+COMMENT ON COLUMN public.user_param.sprcode
+  IS 'связь с общим справочником';
+
+COMMENT ON COLUMN public.user_param.edizm
+  IS 'единица измерения';
+
+COMMENT ON COLUMN public.user_param.kodpar
+  IS 'код параметра по классификатору СНГ';
+
+COMMENT ON COLUMN public.user_param.shortnm
+  IS 'краткое наименование';
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER, TRUNCATE
+  ON public.user_param
+TO postgres;
+
+GRANT SELECT
+  ON public.user_param
+TO exper_light;
+
+GRANT SELECT
+  ON public.user_param
+TO buildrig_role;
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER, TRUNCATE
+  ON public.user_param
+TO burnar_role;
+
+GRANT SELECT
+  ON public.user_param
+TO nkrs_role;
+
+GRANT SELECT
+  ON public.user_param
+TO osvoenie_role;
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER
+  ON public.user_param
+TO depnar_role;
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER
+  ON public.user_param
+TO strapping_role;
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER
+  ON public.user_param
+TO calc_role;
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER
+  ON public.user_param
+TO hos_role;
