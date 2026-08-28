@@ -1,0 +1,80 @@
+--Table: public.normist
+
+--DROP TABLE public.normist;
+
+CREATE TABLE public.normist (
+  norm_id   numeric(7) NOT NULL,
+  norm_ist  numeric(8) NOT NULL,
+  /* Foreign keys */
+  CONSTRAINT fk_normist_normid
+    FOREIGN KEY (norm_id)
+    REFERENCES public.norms("key")
+    ON DELETE CASCADE
+);
+
+CREATE UNIQUE INDEX uk_istnorm
+  ON public.normist
+  (norm_id, norm_ist);
+
+CREATE TRIGGER trg_normist_del_before
+  BEFORE DELETE
+  ON public.normist
+  FOR EACH ROW
+  EXECUTE PROCEDURE public.ftrg_normist_del_before();
+
+CREATE TRIGGER trg_normist_ins_before
+  BEFORE INSERT
+  ON public.normist
+  FOR EACH ROW
+  EXECUTE PROCEDURE public.ftrg_normist_ins_before();
+
+CREATE TRIGGER trg_normist_upd_before
+  BEFORE UPDATE
+  ON public.normist
+  FOR EACH ROW
+  EXECUTE PROCEDURE public.ftrg_normist_upd_before();
+
+ALTER TABLE public.normist
+  OWNER TO postgres;
+
+COMMENT ON COLUMN public.normist.norm_id
+  IS 'код нормы';
+
+COMMENT ON COLUMN public.normist.norm_ist
+  IS 'код источника нормирования ЭНБДТ';
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER, TRUNCATE
+  ON public.normist
+TO postgres;
+
+GRANT SELECT
+  ON public.normist
+TO exper_light;
+
+GRANT SELECT
+  ON public.normist
+TO buildrig_role;
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER, TRUNCATE
+  ON public.normist
+TO burnar_role;
+
+GRANT SELECT
+  ON public.normist
+TO nkrs_role;
+
+GRANT SELECT
+  ON public.normist
+TO osvoenie_role;
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER
+  ON public.normist
+TO depnar_role;
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER
+  ON public.normist
+TO strapping_role;
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER
+  ON public.normist
+TO hos_role;
