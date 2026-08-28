@@ -1,0 +1,139 @@
+--Table: public.operlife
+
+--DROP TABLE public.operlife;
+
+CREATE TABLE public.operlife (
+  id            numeric(7) NOT NULL PRIMARY KEY,
+  operizmer     numeric(7) NOT NULL,
+  enterdate     timestamp without time zone DEFAULT CURRENT_DATE,
+  outdate       timestamp without time zone NOT NULL DEFAULT to_date('01.01.4000'::text, 'dd.mm.yyyy'::text),
+  findnormtype  numeric(7) NOT NULL,
+  osnoventer1   numeric(8),
+  proizvodit    numeric(7),
+  ops           varchar(100),
+  edizm_com     numeric(8),
+  typerab       numeric(7),
+  date_state    timestamp without time zone,
+  /* Keys */
+  CONSTRAINT operlife_pkey
+    PRIMARY KEY (id),
+  /* Foreign keys */
+  CONSTRAINT fk_edizm_com
+    FOREIGN KEY (edizm_com)
+    REFERENCES public.common_spr(id), 
+  CONSTRAINT fk_findnormtype
+    FOREIGN KEY (findnormtype)
+    REFERENCES public.sys_znspr("key"), 
+  CONSTRAINT fk_operizmer
+    FOREIGN KEY (operizmer)
+    REFERENCES public.oper_izmer("key")
+    DEFERRABLE
+    INITIALLY IMMEDIATE, 
+  CONSTRAINT fk_proizvodit
+    FOREIGN KEY (proizvodit)
+    REFERENCES public.sys_znspr("key"), 
+  CONSTRAINT fk_typerab
+    FOREIGN KEY (typerab)
+    REFERENCES public.sys_znspr("key")
+);
+
+CREATE INDEX indx_operlife_operizmer
+  ON public.operlife
+  (operizmer);
+
+CREATE TRIGGER trg_operlife_ins_after
+  AFTER INSERT
+  ON public.operlife
+  FOR EACH ROW
+  EXECUTE PROCEDURE public.ftrg_operlife_ins_after();
+
+CREATE TRIGGER trg_operlife_ins_before
+  BEFORE INSERT
+  ON public.operlife
+  FOR EACH ROW
+  EXECUTE PROCEDURE public.ftrg_operlife_ins_before();
+
+CREATE TRIGGER trg_operlife_upd_after
+  AFTER UPDATE
+  ON public.operlife
+  FOR EACH ROW
+  EXECUTE PROCEDURE public.ftrg_operlife_upd_after();
+
+ALTER TABLE public.operlife
+  OWNER TO postgres;
+
+COMMENT ON TABLE public.operlife
+  IS 'Времена жизни операций';
+
+COMMENT ON COLUMN public.operlife.id
+  IS 'код операции в момент времени';
+
+COMMENT ON COLUMN public.operlife.operizmer
+  IS 'код измерителя операции';
+
+COMMENT ON COLUMN public.operlife.enterdate
+  IS 'время вступления в силу';
+
+COMMENT ON COLUMN public.operlife.outdate
+  IS 'время вывода из действия';
+
+COMMENT ON COLUMN public.operlife.findnormtype
+  IS 'тип (способ) нормообразования';
+
+COMMENT ON COLUMN public.operlife.osnoventer1
+  IS 'основание (источник) ссылка на элемент сборника istochniki.id';
+
+COMMENT ON COLUMN public.operlife.proizvodit
+  IS 'производитель операции(кто совершает)';
+
+COMMENT ON COLUMN public.operlife.ops
+  IS 'Дублирует (common_spr.nm) для ед.изм. ИСПОЛЬЗУЙ edizm_com -> common_spr.id';
+
+COMMENT ON COLUMN public.operlife.edizm_com
+  IS 'ед.изм. из общего справочника  (common_spr.id)';
+
+COMMENT ON COLUMN public.operlife.typerab
+  IS 'тип работы в проекте';
+
+COMMENT ON COLUMN public.operlife.date_state
+  IS 'Дата создания, для сбора статистики';
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER, TRUNCATE
+  ON public.operlife
+TO postgres;
+
+GRANT SELECT
+  ON public.operlife
+TO exper_light;
+
+GRANT SELECT
+  ON public.operlife
+TO buildrig_role;
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER, TRUNCATE
+  ON public.operlife
+TO burnar_role;
+
+GRANT SELECT
+  ON public.operlife
+TO nkrs_role;
+
+GRANT SELECT
+  ON public.operlife
+TO osvoenie_role;
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER
+  ON public.operlife
+TO depnar_role;
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER
+  ON public.operlife
+TO strapping_role;
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER
+  ON public.operlife
+TO calc_role;
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER
+  ON public.operlife
+TO hos_role;
