@@ -1,0 +1,120 @@
+--Table: public.zn_dparam
+
+--DROP TABLE public.zn_dparam;
+
+CREATE TABLE public.zn_dparam (
+  "key"       numeric(10) NOT NULL PRIMARY KEY,
+  dparam      numeric(10) NOT NULL,
+  znach       varchar(300) NOT NULL,
+  ops         varchar(200),
+  orderv      numeric(3),
+  shortznach  varchar(100),
+  kodznpar    varchar(9),
+  sprcode     numeric(8),
+  val2        numeric(10,2),
+  val1        numeric(10,2),
+  /* Keys */
+  CONSTRAINT zn_dparam_pkey
+    PRIMARY KEY ("key"),
+  /* Foreign keys */
+  CONSTRAINT fk_comspr1
+    FOREIGN KEY (sprcode)
+    REFERENCES public.common_spr(id), 
+  CONSTRAINT fk_spr_id
+    FOREIGN KEY (dparam)
+    REFERENCES public.user_param("key")
+);
+
+CREATE TRIGGER trg_zndparam_del_bef
+  BEFORE DELETE
+  ON public.zn_dparam
+  FOR EACH ROW
+  EXECUTE PROCEDURE public.ftrg_zndparam_del_bef();
+
+CREATE TRIGGER trg_zndparam_upd_bef
+  BEFORE UPDATE
+  ON public.zn_dparam
+  FOR EACH ROW
+  EXECUTE PROCEDURE public.ftrg_zndparam_upd_bef();
+
+CREATE TRIGGER trg_znnormoobraz_par_ins_bef
+  BEFORE INSERT
+  ON public.zn_dparam
+  FOR EACH ROW
+  EXECUTE PROCEDURE public.ftrg_znnormoobraz_par_ins_bef();
+
+ALTER TABLE public.zn_dparam
+  OWNER TO postgres;
+
+COMMENT ON TABLE public.zn_dparam
+  IS 'Значения нормообразующих параметров';
+
+COMMENT ON COLUMN public.zn_dparam."key"
+  IS 'ключ';
+
+COMMENT ON COLUMN public.zn_dparam.dparam
+  IS 'код дискретного параметра';
+
+COMMENT ON COLUMN public.zn_dparam.znach
+  IS 'значение';
+
+COMMENT ON COLUMN public.zn_dparam.ops
+  IS 'полное описание';
+
+COMMENT ON COLUMN public.zn_dparam.orderv
+  IS 'порядок значения внутри группы';
+
+COMMENT ON COLUMN public.zn_dparam.shortznach
+  IS 'краткое наименование значения';
+
+COMMENT ON COLUMN public.zn_dparam.kodznpar
+  IS 'код значения параметра по классификатору СНГ';
+
+COMMENT ON COLUMN public.zn_dparam.sprcode
+  IS 'связь с общим справочником';
+
+COMMENT ON COLUMN public.zn_dparam.val2
+  IS 'число 2';
+
+COMMENT ON COLUMN public.zn_dparam.val1
+  IS 'число 1';
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER, TRUNCATE
+  ON public.zn_dparam
+TO postgres;
+
+GRANT SELECT
+  ON public.zn_dparam
+TO exper_light;
+
+GRANT SELECT
+  ON public.zn_dparam
+TO buildrig_role;
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER, TRUNCATE
+  ON public.zn_dparam
+TO burnar_role;
+
+GRANT SELECT
+  ON public.zn_dparam
+TO nkrs_role;
+
+GRANT SELECT
+  ON public.zn_dparam
+TO osvoenie_role;
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER
+  ON public.zn_dparam
+TO depnar_role;
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER
+  ON public.zn_dparam
+TO strapping_role;
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER
+  ON public.zn_dparam
+TO calc_role;
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER
+  ON public.zn_dparam
+TO hos_role;
