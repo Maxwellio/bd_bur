@@ -1,0 +1,24 @@
+--Table: burnar.tkeydate
+
+--DROP TABLE burnar.tkeydate;
+
+CREATE TABLE burnar.tkeydate (
+  "key"        numeric,
+  os_user      varchar(30),
+  narkey       integer,
+  begoperdate  timestamp without time zone
+);
+
+ALTER TABLE burnar.tkeydate
+  OWNER TO postgres;
+
+COMMENT ON TABLE burnar.tkeydate
+  IS 'Таблица(временная), чтобы сместить даты при расчете операции';
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER, TRUNCATE
+  ON burnar.tkeydate
+TO postgres;
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER, TRUNCATE
+  ON burnar.tkeydate
+TO burnar_role;
