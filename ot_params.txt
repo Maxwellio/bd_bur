@@ -1,0 +1,41 @@
+--View: burnar.ot_params
+
+--DROP VIEW burnar.ot_params;
+
+CREATE VIEW burnar.ot_params
+(
+  ot_do_key
+)
+AS
+SELECT 
+  747 AS ot_do_key 
+UNION ALL
+SELECT 
+  1050 AS ot_do_key 
+UNION ALL
+SELECT 
+  1048 AS ot_do_key 
+UNION ALL
+SELECT 
+  823 AS ot_do_key 
+UNION ALL
+SELECT 
+  1172 AS ot_do_key 
+UNION ALL
+SELECT 
+  1073 AS ot_do_key;
+
+ALTER TABLE burnar.ot_params
+  OWNER TO postgres;
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER, TRUNCATE
+  ON burnar.ot_params
+TO postgres;
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER, TRUNCATE
+  ON burnar.ot_params
+TO burnar_role;
+
+GRANT SELECT
+  ON burnar.ot_params
+TO out_asubur;
