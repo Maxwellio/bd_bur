@@ -1,0 +1,65 @@
+--Table: public.algzndparam
+
+--DROP TABLE public.algzndparam;
+
+CREATE TABLE public.algzndparam (
+  alg       numeric NOT NULL,
+  zndparam  numeric(10) NOT NULL,
+  /* Foreign keys */
+  CONSTRAINT fk_alg1
+    FOREIGN KEY (alg)
+    REFERENCES public.algs("key")
+    ON DELETE CASCADE
+);
+
+ALTER TABLE public.algzndparam
+  OWNER TO postgres;
+
+COMMENT ON TABLE public.algzndparam
+  IS 'значения дискретных параметров, используемых в алгоритмах';
+
+COMMENT ON COLUMN public.algzndparam.alg
+  IS 'код алгоритма';
+
+COMMENT ON COLUMN public.algzndparam.zndparam
+  IS 'код значения дискретного параметра';
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER, TRUNCATE
+  ON public.algzndparam
+TO postgres;
+
+GRANT SELECT
+  ON public.algzndparam
+TO exper_light;
+
+GRANT SELECT
+  ON public.algzndparam
+TO buildrig_role;
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER, TRUNCATE
+  ON public.algzndparam
+TO burnar_role;
+
+GRANT SELECT
+  ON public.algzndparam
+TO nkrs_role;
+
+GRANT SELECT
+  ON public.algzndparam
+TO osvoenie_role;
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER
+  ON public.algzndparam
+TO depnar_role;
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER
+  ON public.algzndparam
+TO strapping_role;
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER
+  ON public.algzndparam
+TO calc_role;
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER
+  ON public.algzndparam
+TO hos_role;
