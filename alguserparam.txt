@@ -1,0 +1,97 @@
+--Table: public.alguserparam
+
+--DROP TABLE public.alguserparam;
+
+CREATE TABLE public.alguserparam (
+  alg         numeric NOT NULL,
+  userparam   numeric NOT NULL,
+  prnum       numeric(2) NOT NULL,
+  defvalue    numeric,
+  funcparnum  numeric(2),
+  funcparnm   varchar(50),
+  val_min     numeric,
+  val_max     numeric,
+  /* Keys */
+  CONSTRAINT alguserparam_pkey
+    PRIMARY KEY (alg, userparam),
+  /* Foreign keys */
+  CONSTRAINT fk_alg_code
+    FOREIGN KEY (alg)
+    REFERENCES public.algs("key")
+    ON DELETE CASCADE
+    DEFERRABLE
+    INITIALLY IMMEDIATE, 
+  CONSTRAINT fk_userpar_code
+    FOREIGN KEY (userparam)
+    REFERENCES public.user_param("key")
+);
+
+ALTER TABLE public.alguserparam
+  OWNER TO postgres;
+
+COMMENT ON TABLE public.alguserparam
+  IS 'Параметры алгоритмов в пользовательском представлении';
+
+COMMENT ON COLUMN public.alguserparam.alg
+  IS 'код алгоритма';
+
+COMMENT ON COLUMN public.alguserparam.userparam
+  IS 'код пользовательского параметра';
+
+COMMENT ON COLUMN public.alguserparam.prnum
+  IS 'порядковый номер параметра';
+
+COMMENT ON COLUMN public.alguserparam.defvalue
+  IS 'значение по умолчанию для конкретного алгоритма';
+
+COMMENT ON COLUMN public.alguserparam.funcparnum
+  IS 'номер входного параметра функции';
+
+COMMENT ON COLUMN public.alguserparam.funcparnm
+  IS 'имя входного параметра из функции';
+
+COMMENT ON COLUMN public.alguserparam.val_min
+  IS 'для непрерывного параметра ограничение значений';
+
+COMMENT ON COLUMN public.alguserparam.val_max
+  IS 'для непрерывного параметра ограничение значений';
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER, TRUNCATE
+  ON public.alguserparam
+TO postgres;
+
+GRANT SELECT
+  ON public.alguserparam
+TO exper_light;
+
+GRANT SELECT
+  ON public.alguserparam
+TO buildrig_role;
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER, TRUNCATE
+  ON public.alguserparam
+TO burnar_role;
+
+GRANT SELECT
+  ON public.alguserparam
+TO nkrs_role;
+
+GRANT SELECT
+  ON public.alguserparam
+TO osvoenie_role;
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER
+  ON public.alguserparam
+TO depnar_role;
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER
+  ON public.alguserparam
+TO strapping_role;
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER
+  ON public.alguserparam
+TO calc_role;
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER
+  ON public.alguserparam
+TO hos_role;
