@@ -1,0 +1,186 @@
+--Procedure: burnar.vipolnenie_lock_oper(bigint, integer)
+
+--DROP PROCEDURE burnar.vipolnenie_lock_oper(bigint, integer);
+
+CREATE OR REPLACE PROCEDURE burnar.vipolnenie_lock_oper
+(
+  IN  akey     bigint,
+  IN  anarkey  integer
+)
+AS $$
+declare
+--  pragma autonomous_transaction;
+  /* функция блокировки работы в выполнении:
+  aisloced - 1 успешное выполнение блокировки
+  aisloced - 0 произошли ошибки при анализе возможности блокировки
+  */
+
+  i numeric := 0;
+  aisrebuild numeric := 0;
+  abegoperdate burnar.defnarvip.begdate%type;
+  anorma burnar.vipolnenie_norm.norma%type :=0;
+  aoplifetype public.operlife.findnormtype%type;
+  aoperlifeid public.operlife.id%type;
+  rec record;
+begin
+ 
+ --нашли, меняем дату, от даты предыдущей + норма времени и проверяем устраивает ли нас ее оперлайф
+ --если устраивает проверяем есть ли у нее норма, если норма есть - она посчитана, можно блокировать
+ --нет так и не блокируем, пускай считают!
+
+ --блокируем, запускаем изменение дат
+ --оперлайф не устроил, перестраиваем операцию и заставляем пользователя пересчитать
+
+ --обнуляем переменные
+ -- aisloced:=0;
+ select begdate  into  abegoperdate 
+ from burnar.defnarvip db 
+ where db.narkey=anarkey;
+ 
+ if  abegoperdate is null then
+   RAISE EXCEPTION '-20001, Время начала выполнения работ не задано!';
+ else
+  --Поднимаем основной запрос
+  for rec in (
+                    
+                    with recursive o as
+                             (select vo.*,
+                                     ARRAY[(row_number() OVER (PARTITION BY vo.parent ORDER BY vo.prnum))::integer] AS ord
+                               from burnar.vipolnenie_oper vo
+                              where vo.parent is null --!!!!!!!!!!22032024
+                                    --vo.KEY = akey --2203
+                                    and vo.narkey = anarkey
+                             union all
+                             select vo.*,
+                                    o.ord || ARRAY[(row_number() OVER (PARTITION BY vo.parent ORDER BY vo.prnum))::integer] AS ord                             
+                               from burnar.vipolnenie_oper vo, o
+                              where o.key = vo.parent)
+                            select o.*, 
+                                   case when o.operlifetype in (78,79,80,82) then (select y.norma from burnar.vipolnenie_norm y where y.vip_key=o.key and y.prnum=2)
+                                   else null end n2 
+                            from o
+                            order by o.ord
+                    )
+  loop
+  
+  --!!!!!!!22032024
+ /*update burnar.vipolnenie_oper 
+ set begoperdate = abegoperdate,
+                   locked=1
+                where  key=rec.key;*/
+    
+   --2706 временно убрал             
+   --26062024SSS если работа не рассчитана, не даем лочть         
+   --if rec.oper is not null and coalesce(rec.n2, 0) = 0 and rec.operlifetype <> 81 --если операция И нет нормы на объем И не структура 
+   --      and rec.operlifetype <> 81 and rec.operlifetype <> 82 then --27062024 исключаем 82-экспер, Ольга сразу сказать не смогла 
+   --   raise exception '-20011, Работа * % # не рассчитана', rec.key;  --выдаем исключение и не даем блокировать работу(ставить цепочку)
+   --end if; 
+  
+  
+   --идем пока не дойдем до нужной работы и все должны быть заблокированы, нет так ошибка
+   if (rec.key <> aKey) and (rec.locked = 1) then
+      abegoperdate := rec.begoperdate;
+      anorma := coalesce(rec.n2, 0);
+   end if;
+   
+   -- пользователь блоктрует блок
+   if (rec.oper is null) and (rec.locked <> 1) then  
+      abegoperdate := abegoperdate + anorma / 1440 * interval '1 day';
+       
+      update burnar.vipolnenie_oper 
+      set begoperdate = abegoperdate,
+          locked=1
+      where key = rec.key;      
+      --commit;
+
+      anorma := 0;
+
+      if rec.key = aKey then
+         exit;
+      end if;
+   end if; --if (rec.oper is null) and (rec.locked <> 1) then
+   
+   --нашли нашу работу
+   if (rec.oper is not null) and  (rec.locked <> 1) then
+   
+       
+   
+      --вычисляем время!
+      if rec.editdate = 1 then 
+         abegoperdate := rec.begoperdate;
+      else 
+         abegoperdate := abegoperdate + anorma / 1440 * interval '1 day';
+      end if;
+      
+      --проверяем какой в экспере оперлайф для данной операции и тип
+      begin
+         select op.findnormtype, op.id 
+                into aoplifetype, aoperlifeid  
+         from public.oper_izmer i
+              ,public.operlife op
+         where i.key = op.operizmer 
+               and i.oper=rec.oper
+               --естественно в новой дате
+               and abegoperdate between op.enterdate and op.outdate;
+      exception
+         when no_data_found then
+           RAISE EXCEPTION '-20010, *%', rec.key || '#';   --ошибка когда есть операция без оперлайфа!!!!
+      end;
+      
+      if aoperlifeid is null then 
+         RAISE EXCEPTION '-20010, *%', rec.key || '#';   --ошибка когда есть операция без оперлайфа!!!!
+      end if;
+
+      -- оперлайф селектанули, тперь проверим на совпадение:
+      if (rec.operlifetype = aoplifetype) and (rec.operlifeid = aoperlifeid) then
+         --нам безумно повезло! проверяем норму
+         if (aoplifetype = 82) or (aoplifetype = 81) or (aoplifetype = 78) 
+             or ( (aoplifetype = 80) and (rec.n2 is not null))
+             or ( (aoplifetype = 79) and (rec.n2 is not null)) then
+ 
+             --еще больше повезло :) обновляем дату и закрываем работу
+             update burnar.vipolnenie_oper 
+             set begoperdate = abegoperdate,
+                 locked = 1
+             where key = rec.key;
+             
+             --commit;
+             --выходим
+             --23.11.2011
+             if (rec.key = aKey) then
+                exit;
+             end if;
+         else
+            -- норма нулевая, а значит операция не рассчитана, так пускай пользователь ее считает!
+              RAISE EXCEPTION '-20001,Операция код:% ', rec.key||' не рассчитана, закрытие невозможно!';  --ошибка когда есть операция без оперлайфа!!!!
+         end if; --endif (aoplifetype = 82) or (aoplifetype = 81) or (aoplifetype = 78)...
+      else
+         -- операция сдвинулась во времени и оперлайф изменился :( - беда!
+         abegoperdate := abegoperdate + anorma / 1440 * interval '1 day';
+         update burnar.vipolnenie_oper 
+         set begoperdate = abegoperdate
+         where key = rec.key;
+         commit;
+
+         CALL burnar.vipolnenie_rebuild_Oper(rec.key, anarkey, aisrebuild);
+         
+         if aisrebuild = 1 then
+              RAISE EXCEPTION '-20001,Операция код:% ', rec.key||' успешно обновлена, повторите рассчет и заблокируйте работу вновь!';  --ошибка когда есть операция без оперлайфа!!!!
+         end if;
+       end if;
+
+       anorma := coalesce(rec.n2, 0);
+       
+   end if; --нашли нашу работу endif (rec.oper is not null) and  (rec.locked <> 1) then
+
+
+   
+  end loop ;---rec0
+
+ end if; --if abegoperdate is null then 
+end ;
+$$
+LANGUAGE 'plpgsql';
+
+ALTER PROCEDURE burnar.vipolnenie_lock_oper(bigint, integer)
+  OWNER TO postgres;
