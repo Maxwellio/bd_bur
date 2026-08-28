@@ -1,0 +1,145 @@
+--Table: public.istochniki
+
+--DROP TABLE public.istochniki;
+
+CREATE TABLE public.istochniki (
+  id          numeric NOT NULL PRIMARY KEY,
+  parent      numeric,
+  nm          varchar(600) NOT NULL,
+  ops         varchar(700),
+  info        varchar(400),
+  ord         numeric(4),
+  pref        varchar(10),
+  newident    varchar(9),
+  lnkfile     varchar(50),
+  bukva       varchar(60),
+  prim        varchar(2000),
+  arhiv       numeric(1) DEFAULT 0,
+  arhiv_dt    date,
+  ord_new     numeric,
+  gorod       varchar(50),
+  izdat_name  varchar(100),
+  data_izdat  numeric(4),
+  /* Keys */
+  CONSTRAINT istochniki_pkey
+    PRIMARY KEY (id)
+);
+
+CREATE INDEX istoch_parid
+  ON public.istochniki
+  (parent);
+
+CREATE INDEX istochniki_index01
+  ON public.istochniki
+  (id, parent);
+
+CREATE INDEX istochniki_index_pid
+  ON public.istochniki
+  (parent, id);
+
+CREATE INDEX pk_istoch_id
+  ON public.istochniki
+  (id);
+
+CREATE TRIGGER trg_ist_ins_before
+  BEFORE INSERT
+  ON public.istochniki
+  FOR EACH ROW
+  EXECUTE PROCEDURE public.ftrg_ist_ins_before();
+
+CREATE TRIGGER trg_ist_upd_before
+  BEFORE UPDATE
+  ON public.istochniki
+  FOR EACH ROW
+  EXECUTE PROCEDURE public.ftrg_ist_upd_before();
+
+ALTER TABLE public.istochniki
+  OWNER TO postgres;
+
+COMMENT ON TABLE public.istochniki
+  IS 'Документы, сборники - источники (основания) для нормирования';
+
+COMMENT ON COLUMN public.istochniki.nm
+  IS 'короткое';
+
+COMMENT ON COLUMN public.istochniki.ops
+  IS 'длинное';
+
+COMMENT ON COLUMN public.istochniki.info
+  IS 'наполнение';
+
+COMMENT ON COLUMN public.istochniki.ord
+  IS 'очередность внутри своего уровня. в основном содержит номера пунктов, карт, параграфов. Поле использовали не поназначению с бородатых годов';
+
+COMMENT ON COLUMN public.istochniki.pref
+  IS 'префикс';
+
+COMMENT ON COLUMN public.istochniki.newident
+  IS 'идентификатор сборника(новый)';
+
+COMMENT ON COLUMN public.istochniki.lnkfile
+  IS 'имя файла для источника';
+
+COMMENT ON COLUMN public.istochniki.bukva
+  IS 'если сортировка буквенная';
+
+COMMENT ON COLUMN public.istochniki.prim
+  IS 'Примечание/Заполняется джобом из НБДТ';
+
+COMMENT ON COLUMN public.istochniki.arhiv
+  IS '1- сборник в архиве/Заполняется джобом из НБДТ';
+
+COMMENT ON COLUMN public.istochniki.arhiv_dt
+  IS 'Окончание срока действия/Заполняется джобом из НБДТ';
+
+COMMENT ON COLUMN public.istochniki.ord_new
+  IS 'очередность внутри своего уровня, ';
+
+COMMENT ON COLUMN public.istochniki.gorod
+  IS 'Город';
+
+COMMENT ON COLUMN public.istochniki.izdat_name
+  IS 'Наименование издательства';
+
+COMMENT ON COLUMN public.istochniki.data_izdat
+  IS 'Дата издательства';
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER, TRUNCATE
+  ON public.istochniki
+TO postgres;
+
+GRANT SELECT
+  ON public.istochniki
+TO exper_light;
+
+GRANT SELECT
+  ON public.istochniki
+TO buildrig_role;
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER, TRUNCATE
+  ON public.istochniki
+TO burnar_role;
+
+GRANT SELECT
+  ON public.istochniki
+TO nkrs_role;
+
+GRANT SELECT
+  ON public.istochniki
+TO osvoenie_role;
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER
+  ON public.istochniki
+TO depnar_role;
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER
+  ON public.istochniki
+TO strapping_role;
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER
+  ON public.istochniki
+TO calc_role;
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER
+  ON public.istochniki
+TO hos_role;
