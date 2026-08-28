@@ -1,0 +1,48 @@
+--Table: burnar.spr_eks
+
+--DROP TABLE burnar.spr_eks;
+
+CREATE TABLE burnar.spr_eks (
+  id          integer NOT NULL PRIMARY KEY,
+  parent_id   integer,
+  "name"      varchar(200),
+  name_short  varchar(200),
+  ord         numeric,
+  /* Keys */
+  CONSTRAINT pk_id
+    PRIMARY KEY (id),
+  /* Foreign keys */
+  CONSTRAINT fk_parent_id
+    FOREIGN KEY (parent_id)
+    REFERENCES burnar.spr_eks(id)
+    ON DELETE CASCADE
+);
+
+ALTER TABLE burnar.spr_eks
+  OWNER TO postgres;
+
+COMMENT ON TABLE burnar.spr_eks
+  IS 'Справочкник элементов конструкции скважины';
+
+COMMENT ON COLUMN burnar.spr_eks.id
+  IS 'Код элемента';
+
+COMMENT ON COLUMN burnar.spr_eks.parent_id
+  IS 'Код родительского элемента';
+
+COMMENT ON COLUMN burnar.spr_eks."name"
+  IS 'Наименование элемента';
+
+COMMENT ON COLUMN burnar.spr_eks.name_short
+  IS 'Краткое наименование элемента';
+
+COMMENT ON COLUMN burnar.spr_eks.ord
+  IS 'Порядковый номер';
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER, TRUNCATE
+  ON burnar.spr_eks
+TO postgres;
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER, TRUNCATE
+  ON burnar.spr_eks
+TO burnar_role;
