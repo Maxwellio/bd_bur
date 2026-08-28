@@ -1,0 +1,469 @@
+--Procedure: burnar.vipolnenie_rebuild_oper(bigint, integer, numeric)
+
+--DROP PROCEDURE burnar.vipolnenie_rebuild_oper(bigint, integer, numeric);
+
+CREATE OR REPLACE PROCEDURE burnar.vipolnenie_rebuild_oper
+(
+  IN     akey        bigint,
+  IN     anarkey     integer,
+  INOUT  aisrebuild  numeric
+)
+AS $$
+declare 
+  /* функция блокировки работы в выполнении:
+  aisrebuild - 1 успешное выполнение ребилда
+  aisrebuild - 0 произошли ошибки при ребилде
+  */
+
+  i    numeric := 0;
+  abegoperdate burnar.defnarzad.begdate%type;
+  anorma burnar.vipolnenie_norm.norma%type;
+  aoplifetype numeric;--public.operlife.findnormtype%type;
+  oldoperlifetype numeric;--public.operlife.findnormtype%type;
+  aoperlifeid numeric;--public.operlife.id%type;
+  oldoperlifeid numeric;--public.operlife.id%type;
+  atyperab numeric;--public.operlife.typerab%type;
+  aoper burnar.vipolnenie_oper.oper%type;
+  CodIzmer numeric;--public.spr_izmer.key%type;
+  Res numeric;--burnar.vipolnenie_oper.whowork%type;
+  recStru record;
+begin
+
+aisrebuild:=0;
+       select op.oper, op.operlifetype, op.operlifeid,op.begoperdate  into aoper, oldoperlifetype, oldoperlifeid,abegoperdate  from burnar.vipolnenie_oper op where op.key=akey;
+-- это блок что с ним делать ХЗ
+if (oldoperlifetype is not null) and (oldoperlifeid is not null) then
+       --проверяем какой в экспере оперлайф для данной операции и тип
+      begin
+         select op.findnormtype, op.id, op.typerab into aoplifetype, aoperlifeid, atyperab  from public.oper_izmer i, public.operlife op
+       where i.key=op.operizmer and i.oper=aoper
+       --естественно в новой дате
+       and  abegoperdate between op.enterdate and op.outdate;
+       exception
+         when no_data_found then
+         RAISE EXCEPTION 'Операция код: *%# не применима для данной даты!', aoper USING ERRCODE = '-20010';  --ошибка когда есть операция без оперлайфа!!!!
+       end;
+       if (aoplifetype is null) or (aoperlifeid is null)
+       then --RAISE_APPLICATION_ERROR(-20010,'Операция код: *'||aoper||'# не применима для данной даты!');  --ошибка когда есть операция без оперлайфа!!!!
+         RAISE EXCEPTION 'Операция код: *%# не применима для данной даты!', aoper USING ERRCODE = '-20010';  --ошибка когда есть операция без оперлайфа!!!!       
+       end if;
+       -- оперлайф селектанули, тперь проверим на совпадение:
+       if (oldoperlifetype=  aoplifetype) and (oldoperlifeid=aoperlifeid) then
+         --нам безумно повезло! перестраивать не надо
+         aisrebuild:=0;
+
+       else
+
+         -- операция сдвинулась во времени и оперлайф изменился :( - беда!
+         -- неоходимо перестроить операцию! :(
+         -- для начало обновим само описание
+
+                update burnar.vipolnenie_oper 
+                set operlifeid=aoperlifeid,
+                    operlifetype=aoplifetype,
+                    operlifetypeoper=atyperab
+                where key=akey;
+
+         -- удаляем источники
+                delete from  burnar.vipolnenie_ist
+                       where vip_key=akey;
+                delete from  burnar.vipolnenie_stroka 
+                       where vip_key=akey;
+         -- очищаем нормы
+                update burnar.vipolnenie_norm 
+                set norma=null
+                where vip_key=akey;
+--                commit;
+         -- если операция была структурой надо удалить все работы котрые в нее входили
+              if oldoperlifetype =81 then
+                delete from  burnar.vipolnenie_oper 
+                       where parent=akey;
+              end if;
+--              commit;
+         -- определяемся с типом операции и что мы будем делать:
+             --константа
+            if aoplifetype=78 then
+                delete from  burnar.vipolnenie_norm 
+                       where vip_key=akey;
+                delete from  burnar.vipolnenie_param 
+                       where vip_key=akey;
+                insert into burnar.vipolnenie_norm (vip_key,norma,prnum)
+                           select akey,  an.norma, an.prnum
+                           from public.norms n, public.all_norms an
+                           where n.key = an.normkey and n.operlifeid = aoperlifeid;
+                      -- можем сохранить источники
+                insert into burnar.vipolnenie_ist (vip_key,ist)
+                        select akey,  an.norm_ist
+                        from public.norms n, public.normist an
+                        where n.key = an.norm_id and n.operlifeid = aoperlifeid;
+                        
+                insert into burnar.vipolnenie_stroka (vip_key,stroka, prnum)
+                       select akey, an.stroka, row_number() over(order by n.KEY) as rownum 
+                        from public.norms n, public.normstr an
+                        where n.key = an.norm_id and n.operlifeid = aoperlifeid;
+--         commit;
+          aisrebuild:=1; -- сигналим что изменили структуру
+          end if; --константа
+            -- алгоритм
+            if aoplifetype = 80  then
+              -- удаляем не используемые параметры
+              delete from burnar.vipolnenie_param where vip_key=akey
+                and parcode not in (   select  up.key
+                from public.alguserparam ap, public.user_param up, public.alg_operlife aop
+                where aop.id_operlife = aoperlifeid and ap.alg = aop.alg and ap.userparam = up.key);
+              -- дополняем недостающими
+              insert into burnar.vipolnenie_param (vip_key,parcode,znach)
+
+           (select akey, up.key, /* тащим значение из сквозных*/
+
+           --если нет значения в сквозных, то берем значение по умолчанию  
+           coalesce((select (select ccs.normparorzn from public.common_spr ccs where ccs.id=t.znval) 
+           from public.common_spr cs, burnar.zndefnarzadatrib  t where cs.normparorzn=up.key
+            and t.parcode=cs.id and t.defnar=anarkey),ap.defvalue)            
+             
+              znach
+              
+             from public.alguserparam ap, public.user_param up, public.alg_operlife aop
+             where aop.id_operlife = aoperlifeid and ap.alg = aop.alg and ap.userparam = up.key and
+                   up.key not in (select nn.parcode from burnar.vipolnenie_param nn where nn.vip_key = akey));
+
+
+
+            aisrebuild:=1;-- сигналим что изменили структуру
+           --commit;
+           end if; ---- алгоритм
+            --  комбинация
+            if aoplifetype = 79 then
+              -- удаляем не используемые параметры
+              delete from burnar.vipolnenie_param where vip_key=akey
+                and parcode not in
+                  (select up.key
+                    from public.comboperparam comb, public.user_param up
+                      where comb.operlifeid = aoperlifeid and up.type = 2 and up.key = comb.param);
+              -- дополняем недостающими
+             insert into burnar.vipolnenie_param (vip_key,parcode,znach)
+
+            (select akey, up.key, /* тащим значение из сквозных*/
+             (select (select ccs.normparorzn from public.common_spr ccs where ccs.id = t.znval)
+              from public.common_spr cs, burnar.zndefnarzadatrib  t
+              where cs.normparorzn = up.key and t.parcode = cs.id and t.defnar = anarkey)
+              
+               znach
+               
+             from public.comboperparam comb, public.user_param up
+             where comb.operlifeid = aoperlifeid and up.type = 2 and up.key = comb.param and
+                   up.key not in (select nn.parcode /*akey*/ from burnar.vipolnenie_param nn where nn.vip_key=akey));
+
+            aisrebuild:=1; -- сигналим что изменили структуру
+--            commit;
+           end if; ---- комбинация
+
+            -- экспериментальная работа
+            if aoplifetype = 82 then
+            --удаляем все параметры
+              null;
+            delete from  burnar.vipolnenie_param 
+                       where vip_key=akey;
+             aisrebuild:=1; -- сигналим что изменили структуру
+            end if;
+   --**********************************************************************
+           --осталось разобраться со структурой :)
+            --собстна струнтура:
+            if aoplifetype = 81 then
+            --удаляем все параметры
+            delete from  burnar.vipolnenie_param 
+                       where vip_key=akey;
+            delete from  burnar.vipolnenie_norm 
+                       where vip_key=akey;
+            select t.izmer into CodIzmer from burnar.sprnartype t, burnar.defnar d
+                where t.key = d.nartype and d.key = anarkey;
+            select d.ownernar into Res from burnar.defnar d where d.key = anarkey;
+            --добавляем работы которые в нее входят:
+                  --- поднимаем дерево для данной структуры
+        for recStru in (
+ with recursive r1 as
+  (select r00.*,
+          burnar.seq_return() as newkey,
+          null ::numeric as newparent
+     from (with /*recursive*/ r0 as (select c.id,
+                                            c.parent,
+                                            c.morder,
+                                            o.key,
+                                            o.nm,
+                                            l.enterdate,
+                                            l.outdate,
+                                            l.proizvodit,
+                                            c.volume,
+                                            l.findnormtype,
+                                            l.typerab,
+                                            null           ::numeric as prior_morder,
+                                            null           ::numeric as prior_key,
+                                            null           ::numeric as prior_id,
+                                            ARRAY[          coalesce(c.morder, 0) ::integer] as arr_morder,
+                                            c.morder as group_koren_id,
+                                            o.KEY    as group_koren_oper
+                                       from public.tech_proc_cfg c,
+                                            public.oper_izmer    z,
+                                            public.spr_oper      o,
+                                            public.operlife      l
+                                      where z.izmer = 
+                                            CodIzmer
+                                        and o.key =
+                                            z.oper
+                                        and l.operizmer =
+                                            z.key
+                                        and c.id = l.id
+                                        and l.enterdate <= 
+                                            abegoperdate
+                                        and l.outdate > 
+                                            abegoperdate
+                                        and c.parent = 
+                                            aoperlifeid
+                                                                             
+                                     )
+            select r0.*
+              from r0
+             order by r0.arr_morder) r00
+             where r00.parent = 
+                   aoperlifeid
+                                                    
+            union all
+            select r00.*,
+                   burnar.seq_return() as newkey,
+                   r1.newkey as newparent
+              from (with recursive r0 as (select c.id,
+                                                 c.parent,
+                                                 c.morder,
+                                                 o.key,
+                                                 o.nm,
+                                                 l.enterdate,
+                                                 l.outdate,
+                                                 l.proizvodit,
+                                                 c.volume,
+                                                 l.findnormtype,
+                                                 l.typerab,
+                                                 null           ::numeric as prior_morder,
+                                                 null           ::numeric as prior_key,
+                                                 null           ::numeric as prior_id,
+                                                 ARRAY[          coalesce(c.morder, 0) ::integer] as arr_morder,
+                                                 c.morder as group_koren_id,
+                                                 o.KEY    as group_koren_oper
+                                            from public.tech_proc_cfg c,
+                                                 public.oper_izmer    z,
+                                                 public.spr_oper      o,
+                                                 public.operlife      l
+                                           where z.izmer = 202
+                                                -- CodIzmer
+                                             and o.key =
+                                                 z.oper
+                                             and l.operizmer =
+                                                 z.key
+                                             and c.id = l.id
+                                             and l.enterdate <= 
+                                                 abegoperdate
+                                             and l.outdate > 
+                                                 abegoperdate
+                                             and c.parent = 
+                                                 aoperlifeid
+                                                                                  
+                                          union all
+                                          select c.id,
+                                                 c.parent,
+                                                 c.morder,
+                                                 o.key,
+                                                 o.nm,
+                                                 l.enterdate,
+                                                 l.outdate,
+                                                 l.proizvodit,
+                                                 c.volume,
+                                                 l.findnormtype,
+                                                 l.typerab,
+                                                 r0.morder as prior_morder,
+                                                 r0.key ::numeric as prior_key,
+                                                 r0.id ::numeric as prior_id,
+                                                 r0.arr_morder ||
+                                                 c.morder ::integer as arr_morder,
+                                                 r0.morder           as group_koren_id,
+                                                 r0.group_koren_oper as group_koren_oper
+                                            from public.tech_proc_cfg c,
+                                                 public.oper_izmer    z,
+                                                 public.spr_oper      o,
+                                                 public.operlife      l,
+                                                 r0
+                                           where z.izmer =
+                                                 CodIzmer
+                                             and o.key =
+                                                 z.oper
+                                             and l.operizmer =
+                                                 z.key
+                                             and c.id = l.id
+                                             and l.enterdate <= 
+                                                 abegoperdate
+                                             and l.outdate > 
+                                                 abegoperdate
+                                             and r0.id =
+                                                 c.parent)
+                     select r0.*
+                       from r0
+                      order by r0.arr_morder) r00, r1
+                      where r00.parent =
+                            r1.id
+                        and r00.group_koren_id =
+                            r1.group_koren_id
+                        and r00.group_koren_oper =
+                            r1.group_koren_oper
+                                           
+   )
+ select r1.newkey, coalesce(r1.newparent, akey) newparent, r1.group_koren_id, r1.group_koren_oper, r1.id, r1.parent, r1.morder, r1.key, r1.nm, r1.enterdate, r1.outdate, r1.proizvodit, r1.volume, r1.findnormtype, r1.typerab
+   from r1
+  order by r1.arr_morder
+)        
+/*        
+        select coalesce(prior q.newkey, akey) newparent,q.* from
+           ( select seq_return newkey,
+         replace(SYS_CONNECT_BY_PATH( decode(level, 1, qqq.morder, ''), '.'),'.') group_koren_id,
+         replace(SYS_CONNECT_BY_PATH( decode(level, 1, qqq.key, ''), '.'),'.') group_koren_oper,
+        qqq.*
+        from
+       (select
+        c.id
+        ,c.parent
+        ,c.morder
+        ,o.key
+        ,o.nm
+        ,l.enterdate
+        ,l.outdate
+        ,l.proizvodit
+        ,c.volume
+        ,l.findnormtype, l.typerab
+        from public.tech_proc_cfg c, public.oper_izmer z, public.spr_oper o, public.operlife l
+        where
+        z.izmer = CodIzmer
+        and o.key = z.oper
+        and l.operizmer = z.key
+        and c.id = l.id
+        and l.enterdate <= abegoperdate
+        and l.outdate > abegoperdate
+        )  qqq
+        start with
+               qqq.parent=aoperlifeid
+        connect by prior
+        qqq.id = qqq.parent
+        order siblings by  qqq.morder
+                  ) q
+        start with  q.parent = aoperlifeid
+        connect by  q.parent= prior q.id and q.group_koren_id= prior q.morder
+        and q.group_koren_oper= prior q.key
+        order siblings by q.morder
+        )*/
+        loop
+        --добавляем элемент структуры - операцию в burnar.vipolnenie_oper
+       insert into burnar.vipolnenie_oper  
+        (key,
+         parent,
+         oper,
+         operlifeid,
+         begoperdate,
+         prnum,
+         whowork,
+         worktype,
+         razdel,
+         narkey,
+         colorsel,
+         volume,
+         locked,
+         operlifetype,
+         operlifetypeoper
+         )
+      values
+        ( recStru.newkey,
+          recStru.newparent,
+          recStru.Key,
+          recStru.id,
+          abegoperdate,
+          recStru.morder ,
+          Res,
+          null,
+          null, --razdel,
+          anarkey,
+          0,
+          null, --объем надо искать по дереву САПТП, если он тебе нужен добывай его сам
+          0,
+          recStru.findnormtype,
+          recStru.Typerab
+         );
+       -- ПО АНАЛОГИИ СОХРАНИЯЕМ СКЕЛЕТ ДЛЯ ЭТИХ РАБОТ
+        --это операция строим для нее структуру под параметры
+
+        --1. параметры для конкретной операции
+        case recStru.Findnormtype
+        when 79 then --комбинация
+          insert into burnar.vipolnenie_param (vip_key,parcode,znach)
+          (select recStru.newkey, up.key,           /* тащим значение из сквозных*/
+           (select (select ccs.normparorzn from public.common_spr ccs where ccs.id=t.znval)
+           from public.common_spr cs, burnar.zndefnarzadatrib  t where cs.normparorzn=up.key
+            and t.parcode=cs.id and t.defnar=anarkey)
+           znach
+           from public.comboperparam comb, public.user_param up
+           where comb.operlifeid = recStru.Id and up.type = 2 and up.key = comb.param);
+        when 80 then --алгоритм
+          insert into burnar.vipolnenie_param (vip_key,parcode,znach)
+          (select  recStru.newkey, up.key,           /* тащим значение из сквозных*/
+          
+           --если нет значения в сквозных, то берем значение по умолчанию  
+           coalesce((select (select ccs.normparorzn from public.common_spr ccs where ccs.id=t.znval) 
+           from public.common_spr cs, burnar.zndefnarzadatrib  t where cs.normparorzn=up.key
+            and t.parcode=cs.id and t.defnar=anarkey),ap.defvalue)            
+      
+
+           znach
+           
+          from public.alguserparam ap, public.user_param up, public.alg_operlife aop
+          where aop.id_operlife = recStru.Id and ap.alg = aop.alg and ap.userparam = up.key);
+       else
+         null;
+       end case; -- case aoplifetype
+
+      --2. подготовка структур для хранения значений норм
+      --вектора норм
+      --значения векторов(структуры для хранения всех атрибутов)
+      if (recStru.Findnormtype = 78) then -- константа,надо вставить уже существующие значения
+        insert into burnar.vipolnenie_norm (vip_key,norma,prnum)
+        select recStru.newkey,  an.norma, an.prnum
+        from public.norms n, public.all_norms an
+        where n.key = an.normkey and n.operlifeid = recStru.Id;
+      end if;
+      if (recStru.Findnormtype = 79)or(recStru.Findnormtype = 80) then --алгоритмы и комбинации
+        insert into burnar.vipolnenie_norm (vip_key,prnum)
+        (select recStru.newkey, c.prnum from public.cfg_izmer c where c.izmer = CodIzmer);
+      end if;
+
+            -- 3. Для констант можем сохранить источники
+      if (recStru.Findnormtype = 78) then -- константа,надо вставить уже существующие значения
+        insert into burnar.vipolnenie_ist (vip_key,ist)
+        select recStru.newkey,  an.norm_ist
+        from public.norms n, public.normist an
+        where n.key = an.norm_id and n.operlifeid = recStru.Id;
+
+        insert into burnar.vipolnenie_stroka (vip_key,stroka, prnum)
+        select recStru.newkey, an.stroka, row_number() over(order by n.KEY) as rownum 
+        from public.norms n, public.normstr an
+        where n.key = an.norm_id and n.operlifeid = recStru.Id;
+
+      end if;
+    --    commit;
+        end loop;
+--        commit;
+             aisrebuild:=1; -- сигналим что изменили структуру
+            end if;
+
+
+  end if; --abegoperdate is null
+end if; --блок
+
+end ;
+$$
+LANGUAGE 'plpgsql';
+
+ALTER PROCEDURE burnar.vipolnenie_rebuild_oper(bigint, integer, numeric)
+  OWNER TO postgres;
