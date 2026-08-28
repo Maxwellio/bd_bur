@@ -1,0 +1,90 @@
+--Table: public.spr_izmer
+
+--DROP TABLE public.spr_izmer;
+
+CREATE TABLE public.spr_izmer (
+  "key"        numeric NOT NULL PRIMARY KEY,
+  znach        varchar(50) NOT NULL,
+  ops          varchar(100),
+  tip          numeric(4),
+  pack_suffix  numeric,
+  /* Keys */
+  CONSTRAINT pk_izmercode
+    PRIMARY KEY ("key")
+);
+
+CREATE TRIGGER trg_sprizmer_del_bef
+  BEFORE DELETE
+  ON public.spr_izmer
+  FOR EACH ROW
+  EXECUTE PROCEDURE public.ftrg_sprizmer_del_bef();
+
+CREATE TRIGGER trg_sprizmer_ins_before
+  BEFORE INSERT
+  ON public.spr_izmer
+  FOR EACH ROW
+  EXECUTE PROCEDURE public.ftrg_sprizmer_ins_before();
+
+CREATE TRIGGER trg_sprizmer_upd_bef
+  BEFORE UPDATE
+  ON public.spr_izmer
+  FOR EACH ROW
+  EXECUTE PROCEDURE public.ftrg_sprizmer_upd_bef();
+
+ALTER TABLE public.spr_izmer
+  OWNER TO postgres;
+
+COMMENT ON TABLE public.spr_izmer
+  IS 'Измерители, системный справочник';
+
+COMMENT ON COLUMN public.spr_izmer.znach
+  IS 'название измерителя';
+
+COMMENT ON COLUMN public.spr_izmer.ops
+  IS 'описание';
+
+COMMENT ON COLUMN public.spr_izmer.tip
+  IS 'Внутрення типизация для автотранспорта';
+
+COMMENT ON COLUMN public.spr_izmer.pack_suffix
+  IS 'Суффикс для текущего имени пакета';
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER, TRUNCATE
+  ON public.spr_izmer
+TO postgres;
+
+GRANT SELECT
+  ON public.spr_izmer
+TO exper_light;
+
+GRANT SELECT
+  ON public.spr_izmer
+TO buildrig_role;
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER, TRUNCATE
+  ON public.spr_izmer
+TO burnar_role;
+
+GRANT SELECT
+  ON public.spr_izmer
+TO nkrs_role;
+
+GRANT SELECT
+  ON public.spr_izmer
+TO osvoenie_role;
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER
+  ON public.spr_izmer
+TO depnar_role;
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER
+  ON public.spr_izmer
+TO strapping_role;
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER
+  ON public.spr_izmer
+TO calc_role;
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER
+  ON public.spr_izmer
+TO hos_role;
