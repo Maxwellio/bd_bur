@@ -1,0 +1,102 @@
+--Table: public.norms
+
+--DROP TABLE public.norms;
+
+CREATE TABLE public.norms (
+  "key"       numeric(7) NOT NULL PRIMARY KEY,
+  operlifeid  numeric NOT NULL,
+  osnov1      numeric(8),
+  date_state  timestamp without time zone,
+  /* Keys */
+  CONSTRAINT norms_pkey
+    PRIMARY KEY ("key"),
+  /* Foreign keys */
+  CONSTRAINT fk_oper2
+    FOREIGN KEY (operlifeid)
+    REFERENCES public.operlife(id)
+    ON DELETE CASCADE
+);
+
+CREATE INDEX ind_norms_operlifeid
+  ON public.norms
+  (operlifeid);
+
+CREATE INDEX nk_norms
+  ON public.norms
+  (operlifeid, "key");
+
+CREATE TRIGGER trg_norm_del_bef
+  BEFORE DELETE
+  ON public.norms
+  FOR EACH ROW
+  EXECUTE PROCEDURE public.ftrg_norm_del_bef();
+
+CREATE TRIGGER trg_norm_ins_after
+  AFTER INSERT
+  ON public.norms
+  FOR EACH ROW
+  EXECUTE PROCEDURE public.ftrg_norm_ins_after();
+
+CREATE TRIGGER trg_norm_ins_before
+  BEFORE INSERT
+  ON public.norms
+  FOR EACH ROW
+  EXECUTE PROCEDURE public.ftrg_norm_ins_before();
+
+ALTER TABLE public.norms
+  OWNER TO postgres;
+
+COMMENT ON TABLE public.norms
+  IS 'ВСЕ нормы';
+
+COMMENT ON COLUMN public.norms."key"
+  IS 'код нормы';
+
+COMMENT ON COLUMN public.norms.operlifeid
+  IS 'привязка к реализации операции';
+
+COMMENT ON COLUMN public.norms.osnov1
+  IS 'основание (источник) полученой нормы';
+
+COMMENT ON COLUMN public.norms.date_state
+  IS 'Дата создания нормы, для сбора статистики';
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER, TRUNCATE
+  ON public.norms
+TO postgres;
+
+GRANT SELECT
+  ON public.norms
+TO exper_light;
+
+GRANT SELECT
+  ON public.norms
+TO buildrig_role;
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER, TRUNCATE
+  ON public.norms
+TO burnar_role;
+
+GRANT SELECT
+  ON public.norms
+TO nkrs_role;
+
+GRANT SELECT
+  ON public.norms
+TO osvoenie_role;
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER
+  ON public.norms
+TO depnar_role;
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER
+  ON public.norms
+TO strapping_role;
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER
+  ON public.norms
+TO calc_role;
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER
+  ON public.norms
+TO hos_role;
