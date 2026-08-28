@@ -1,0 +1,120 @@
+--Procedure: burnar.setnextdateopervip(bigint, integer)
+
+--DROP PROCEDURE burnar.setnextdateopervip(bigint, integer);
+
+CREATE OR REPLACE PROCEDURE burnar.setnextdateopervip
+(
+  IN  nkey     bigint,
+  IN  anarkey  integer
+)
+AS $$
+DECLARE
+--процедура обновляет дату применения всех операций после nkey 
+-- пока не встретится следующая расчетная операция 
+-- и возвращает коды изменных операций и новые даты
+
+   rec record;
+   usr     varchar(50); 
+   cnt integer:= 0 ;
+   temp_norm burnar.vipolnenie_norm.norma%type;
+   newdate burnar.vipolnenie_oper.begoperdate%type;
+BEGIN
+
+--    akey := current_setting('buildrig.NarKey'::text);  
+--    aperiod := current_setting('buildrig.period')::numeric;
+
+    usr := current_setting('USERENV.os_user'::text); 
+    
+    delete from burnar.tkeydate where narkey = anarkey and os_user = usr;
+    
+    for rec in (
+                WITH TTT AS
+                (
+                select ff.*, row_number() OVER() ORD
+                                            from (with recursive o as (select vo.key,
+                                                                              vo.parent,
+                                                                              vo.prnum,
+                                                                              vo.oper,
+                                                                              vo.operlifeid,
+                                                                              vo.operlifetype,
+                                                                              vo.begoperdate, 
+                                                                              ARRAY[(row_number() OVER (PARTITION BY vo.parent ORDER BY vo.prnum))::integer] AS ord2
+                                                                         from burnar.vipolnenie_oper vo
+                                                                        where vo.parent is null
+                                                                          and vo.narkey = anarkey -- narkey
+                                                                       union all
+                                                                       select vo.key,
+                                                                              vo.parent,
+                                                                              vo.prnum,
+                                                                              vo.oper,
+                                                                              vo.operlifeid,
+                                                                              vo.operlifetype,
+                                                                              vo.begoperdate,
+                                                                              o.ord2 || ARRAY[(row_number() OVER (PARTITION BY vo.parent ORDER BY vo.prnum))::integer] AS ord2
+                                                                         from burnar.vipolnenie_oper vo, o
+                                                                        where o.key = vo.parent)
+                                                   select o.key, o.parent, o.prnum, o.begoperdate, o.oper, 
+                                                          case when o.operlifetype in (78, 79, 80) then
+                                                            (select y.norma
+                                                               from burnar.vipolnenie_norm y
+                                                              where y.vip_key = o.key
+                                                                and y.prnum = 2)
+                                                           else
+                                                            null
+                                                         end as n2, o.operlifeid, o.operlifetype
+                                                     from o
+                                                    order by o.ord2) as FF)
+                select gg.*
+                  from ttt gg,(
+                select jj.ord
+                  from ttt AS jj
+                 where jj.key = nkey) ll
+                 where gg.ord >= ll.ord
+                 order by gg.ord                                     
+                 )
+     loop
+
+         if rec.key = nkey then 
+
+            newdate := rec.begoperdate; 
+            temp_norm := coalesce(rec.n2,0);
+             
+         else
+            -- пока не встретили алгоритм или комбинацию можем смело менять время выполнения у констант и блоков
+            -- апдейтим время начала операции + норма предыдущей операции 
+             
+--             newdate:=newdate+1/1440*(temp_norm);  
+
+             newdate := newdate + temp_norm/1440 * interval '1 day';
+                             
+             update burnar.vipolnenie_oper
+             set begoperdate = newdate
+             where key = rec.key; 
+   
+            -- сохраняем норму текущей операции пригодится на следующей итерации  
+
+              temp_norm :=coalesce(rec.n2,0);
+              
+--              pipe row ( tkeydate(rec.key,newdate));
+
+              INSERT INTO burnar.tkeydate
+                    ("key", begoperdate, os_user, narkey)
+              VALUES
+                    (rec.key, newdate, usr, anarkey);              
+              
+         if rec.operlifetype in (80,79) then exit;      
+         end if;
+         end if;
+        
+      end loop;          
+--     RAISE NOTICE 'akey% , cnt%', akey, cnt;
+
+     
+  return;
+
+END
+$$
+LANGUAGE 'plpgsql';
+
+ALTER PROCEDURE burnar.setnextdateopervip(bigint, integer)
+  OWNER TO postgres;
