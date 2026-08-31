@@ -1,0 +1,176 @@
+--Procedure: burnar.zadanie_closenar(integer)
+
+--DROP PROCEDURE burnar.zadanie_closenar(integer);
+
+CREATE OR REPLACE PROCEDURE burnar.zadanie_closenar
+(
+  IN  anarkey  integer
+)
+AS $$
+--  pragma autonomous_transaction;
+  /* функция блокировки работы в выполнении:
+  aisloced - 1 успешное выполнение блокировки
+  aisloced - 0 произошли ошибки при анализе возможности блокировки */
+
+declare 
+  rec record;
+  i    numeric := 0;
+  aisrebuild numeric := 0;
+  abegoperdate burnar.defnarzad.begdate%type;
+  anorma burnar.zadanie_norm.norma%type :=0;
+  aoplifetype operlife.findnormtype%type;
+  aoperlifeid operlife.id%type;
+
+begin
+  --обнуляем переменные
+ -- aisloced:=0;
+ select begdate into abegoperdate from burnar.defnarzad db where db.narkey=anarkey;
+ 
+ if  abegoperdate is null then
+ RAISE Exception '-20001, Дата начала выполнения работ не задано!';
+ else
+  --Поднимаем основной запрос
+  for rec in with recursive tmp as(
+                                    select o.*, 
+                                           ARRAY[(row_number() OVER (PARTITION BY o.parent
+                                           ORDER BY o.prnum))::integer] AS ord2
+                                    from burnar.zadanie_oper o
+                                    where o.parent is null and o.narkey=anarkey
+                                    union all
+                                    select o.*,
+                                           (tmp.ord2 || ARRAY[(row_number() OVER (PARTITION BY o.parent
+                                           ORDER BY o.prnum))::integer]) AS ord2
+                                    from tmp, burnar.zadanie_oper o
+                                    where tmp.key=o.parent
+                                    )
+select tmp.key,
+       tmp.parent,
+       tmp.prnum,
+       tmp.begoperdate,
+       tmp.oper,
+       case when tmp.operlifetype in (78,79,80,82) then 
+               --было до 01072024 убрал. осставил по аналогии с ораклом. иначе нормой NULL даст закрыть задание 
+               --(select coalesce(y.norma,0) from burnar.zadanie_norm y where y.zad_key=tmp.key and y.prnum=2)
+               --01072024SSS
+               (select y.norma from burnar.zadanie_norm y where y.zad_key=tmp.key and y.prnum=2)
+            else 
+                null 
+       end n2
+       ,tmp.operlifeid
+       ,tmp.operlifetype
+       ,tmp.colorsel
+       ,tmp.locked
+       ,tmp.narkey 
+from tmp order by ord2 
+/*
+                (select
+                level lev, rownum rn,
+                o.key,o.parent,
+                o.prnum,
+                o.begoperdate,
+                o.oper,
+                case when o.operlifetype in (78,79,80,82) then (select y.norma from zadanie_norm y where y.zad_key=o.key and y.prnum=2)
+                else null end n2
+                ,o.operlifeid
+                ,o.operlifetype
+                ,o.colorsel
+                ,o.locked
+                ,o.narkey
+                
+                 from zadanie_oper o
+                start with o.parent is null and o.narkey=anarkey
+                connect by prior o.key=o.parent
+                order siblings by o.prnum )
+*/                
+  loop
+   --идем пока не дойдем до нужной работы и все должны быть заблокированы, нет так ошибка
+
+     anorma := coalesce(rec.n2, 0);
+
+     if rec.oper is not null then --проверяем какой в экспере оперлайф для данной операции и тип
+     begin
+         select op.findnormtype, op.id into aoplifetype, aoperlifeid  
+         from oper_izmer i, operlife op
+         where i.key = op.operizmer 
+               and i.oper = rec.oper
+               and  abegoperdate between op.enterdate and op.outdate; --естественно в новой дате
+         
+         --2706 временно убрал 
+         --26062024SSS из-за того что сбоники криво занесены, после рассчета опрации бывает нет нормы(хранится не NULL, а НОЛЬ)         
+         --if anorma = 0 and rec.operlifetype <> 81 and rec.operlifetype <> 82 then --нет нормы на объем. и не структура
+         --   raise exception '-20011, Работа * % # не рассчитана', rec.key;  --выдаем исключение и не даем блокировать задание
+         --end if;               
+     exception  when no_data_found then
+        raise exception '-20010, %#',rec.key;  --ошибка когда есть операция без оперлайфа!!!!
+     end;
+       
+     if aoperlifeid is null then 
+        raise EXCEPTION '-20010, Операция код: * % # не применима для данной даты!', rec.key;--ошибка когда есть операция без оперлайфа!!!!
+     end if;
+       
+     update burnar.zadanie_oper
+     set begoperdate = abegoperdate
+     where key = rec.key;
+       
+--       abegoperdate := to_date(abegoperdate::date,'dd.mm.yyyy'); -- + (anorma/1440);
+
+       abegoperdate := abegoperdate + (anorma/1440) * interval '1 day';
+       
+       -- оперлайф селектанули, тперь проверим на совпадение:
+/*          
+          raise notice 'rec.key = % ',rec.key;
+          raise notice 'rec.operlifetype = % ', rec.operlifetype;
+          raise notice 'aoplifetype = % ', aoplifetype;
+          raise notice 'rec.operlifeid = % ', rec.operlifeid;
+          raise notice 'aoperlifeid = % ', aoperlifeid;          
+          raise notice 'rec.n2 = % ', rec.n2;
+*/                           
+       if (rec.operlifetype=  aoplifetype) and (rec.operlifeid=aoperlifeid) then
+         --нам безумно повезло! проверяем норму
+--          if (aoplifetype=82) or (aoplifetype=81) or (aoplifetype=78) or  --- убираю проверку на null тут так не работает
+--            ( (aoplifetype=80) and ((rec.n2 is not null) AND (rec.n2 <> 0)) )
+--            or ( (aoplifetype=79)and (rec.n2 is  not null))
+          if (aoplifetype=82) or (aoplifetype=81) or (aoplifetype=78) or
+            ( (aoplifetype=80) and ((rec.n2 is not null) OR (rec.n2 <> 0)) )
+            or ( (aoplifetype=79)and (rec.n2 is  not null))
+            
+              then null;
+           else
+            -- норма нулевая, а значит операция не рассчитана, так пускай пользователь ее считает!
+              raise EXCEPTION '-20010, Операция код: * % не рассчитана, закрытие невозможно!', rec.key;--ошибка когда есть операция без оперлайфа!!!!
+            end if;
+       else
+         -- операция сдвинулась во времени и оперлайф изменился :( - беда!
+         commit;
+
+         CALL burnar.zadanie_rebuild_Oper(rec.key,anarkey,aisrebuild);
+
+         if aisrebuild=1 then
+              raise EXCEPTION '-20010, Операция код: % успешно обновлена, проверьте работу и повторите закрытие наряда!', rec.key;--ошибка когда есть операция без оперлайфа!!!!              
+         end if;
+       end if;
+      else
+
+      --это просто блок пропускаем его изменяя ему дату
+      update burnar.zadanie_oper 
+      set begoperdate=abegoperdate
+      where key=rec.key;
+       
+--      abegoperdate := to_date(abegoperdate::date,'dd.mm.yyyy'); -- + (anorma/1440);
+
+      abegoperdate := abegoperdate + (anorma/1440) * interval '1 day'; -- + (anorma/1440);      
+      
+      end if;
+  end loop ;---rec0
+  
+  update burnar.defnarzad set closed=1 where narkey=anarkey;
+  
+--  commit;
+  
+  end if; --abegoperdate is null
+end ;
+$$
+LANGUAGE 'plpgsql';
+
+ALTER PROCEDURE burnar.zadanie_closenar(integer)
+  OWNER TO postgres;
