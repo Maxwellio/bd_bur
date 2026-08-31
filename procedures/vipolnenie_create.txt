@@ -1,0 +1,41 @@
+--Procedure: burnar.vipolnenie_create(integer)
+
+--DROP PROCEDURE burnar.vipolnenie_create(integer);
+
+CREATE OR REPLACE PROCEDURE burnar.vipolnenie_create
+(
+  IN  anarkey  integer
+)
+AS $$
+--копирует весь наряд из задания в выполнение
+declare 
+rec record;
+cn integer;
+begin
+
+  --находим код наряда в части выполнения
+  select count(d.narkey) into cn from burnar.defnarvip d where d.narkey=aNarKey;
+  if cn = 0 then
+    insert into burnar.defnarvip(NARKEY) values (aNarKey);
+  else
+    --удаляем старые заготовки
+    delete from burnar.zndefnarvipatrib z where z.defnar=aNarKey;
+    delete from burnar.vipolnenie_period p where p.narkey=aNarKey; --Frolov_AA 03.03.2012
+
+    --удаляем работы факта
+    delete from burnar.vipolnenie_oper v where v.narkey=aNarKey;
+  end if;
+
+  --копируем значения сквозных параметров из плана
+  insert into burnar.zndefnarvipatrib (defnar,prnum,znval,val,valstr,parcode)
+  (select nt.defnar,nt.prnum,nt.znval,nt.val,nt.valstr,nt.parcode
+   from burnar.zndefnarzadatrib nt where nt.defnar=aNarKey);
+
+  commit;
+
+end ;
+$$
+LANGUAGE 'plpgsql';
+
+ALTER PROCEDURE burnar.vipolnenie_create(integer)
+  OWNER TO postgres;
