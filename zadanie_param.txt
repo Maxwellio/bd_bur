@@ -1,0 +1,43 @@
+--Table: burnar.zadanie_param
+
+--DROP TABLE burnar.zadanie_param;
+
+CREATE TABLE burnar.zadanie_param (
+  zad_key  integer NOT NULL,
+  parcode  numeric NOT NULL,
+  znach    numeric(16,4),
+  /* Keys */
+  CONSTRAINT pk_zadanie_param
+    PRIMARY KEY (zad_key, parcode)
+);
+
+CREATE INDEX nk_zad_key
+  ON burnar.zadanie_param
+  (zad_key);
+
+ALTER TABLE burnar.zadanie_param
+  OWNER TO postgres;
+
+COMMENT ON TABLE burnar.zadanie_param
+  IS 'Параметры операций задания';
+
+COMMENT ON COLUMN burnar.zadanie_param.zad_key
+  IS 'Код строки наряда';
+
+COMMENT ON COLUMN burnar.zadanie_param.parcode
+  IS 'Код параметра из Экспера';
+
+COMMENT ON COLUMN burnar.zadanie_param.znach
+  IS 'Значение параметра ';
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER, TRUNCATE
+  ON burnar.zadanie_param
+TO postgres;
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER, TRUNCATE
+  ON burnar.zadanie_param
+TO burnar_role;
+
+GRANT SELECT
+  ON burnar.zadanie_param
+TO out_asubur;
