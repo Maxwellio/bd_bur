@@ -1,0 +1,143 @@
+--Procedure: burnar.zadanie_calc_operp(integer, integer, numeric, numeric, numeric, varchar, numeric, numeric)
+
+--DROP PROCEDURE burnar.zadanie_calc_operp(integer, integer, numeric, numeric, numeric, varchar, numeric, numeric);
+
+CREATE OR REPLACE PROCEDURE burnar.zadanie_calc_operp
+(
+  IN     akey         integer,
+  IN     aoperlifeid  integer,
+  INOUT  aizmer       numeric,
+  INOUT  normaed      numeric,
+  INOUT  normaob      numeric,
+  INOUT  istochniki   varchar,
+  INOUT  aot          numeric,
+  INOUT  ado          numeric
+)
+AS $$
+declare 
+  Pars public.TContPar[];
+  tmp  public.TNormaObj; --значение вектора нормы
+  i    numeric := 0;
+  vol  numeric; --объём работ 
+  rec record;
+  rec1 record;
+  rec2 record;
+  mass_ell public.tnorma;
+  mass_id numeric;
+begin
+
+ --обнуляем переменные
+  istochniki := '';
+  normaed := 0;
+  normaob := 0;
+  aot := null;
+  ado := null;
+  
+  --получаем сохраненные параметры листовой операции
+  select --ARRAY[(t.parcode, t.znach)::public.TCONTPAR] into pars
+         array_agg((t.parcode, t.znach)::public.TCONTPAR) into pars
+  from burnar.zadanie_param t
+  where t.zad_key = aKey;
+   
+  ---удаляем старые нормы
+  update burnar.zadanie_norm 
+  set NORMA = null 
+  where zad_key = akey;
+  
+  -- получаем результирующий объект
+  tmp := public.clcleafobj(aoperlifeid, aIzmer, Pars);  
+
+   raise notice 'pars  = %', pars;
+
+  -- сохраняем новый вектор нормы
+-- берем реальный номер элемента в массиве, для нас это будет PRNUM
+  for rec in (select generate_subscripts(tmp.aNorma,1) as idx, (unnest(tmp.aNorma)).norma as val)
+  loop
+--        raise notice 'idx = %', rec.idx;  
+--        raise notice 'val = %', rec.val;
+        
+     update burnar.zadanie_norm
+         set NORMA = rec.val     
+     where zad_key = akey
+           and PRNUM = rec.idx;
+  end loop;
+  
+/*  mass_id := 1;
+  foreach mass_ell in array tmp.anorma   --for i in 1 .. tmp.anorma.Count loop update burnar.zadanie_norm set NORMA = tmp.aNorma(i).norma where zad_key = akey and PRNUM = i; end loop; 
+  loop
+     update burnar.zadanie_norm
+         set NORMA = mass_ell.norma --tmp.aNorma(i).norma    
+     where zad_key = akey
+       and PRNUM = mass_id; --i;
+       
+     mass_id := mass_id + 1;  
+  end loop;
+*/  
+  -- теперь нужно найти уникальные источники и сохранить их
+  --но сначала удалим старые
+  delete from burnar.zadanie_ist 
+  where zad_key = akey;
+  
+  -- а вот и сохраняем новые
+  for rec1 in ( select distinct (unnest(tmp.aIst)).ist as ist )
+  loop
+    if rec1.ist is not null then
+      insert into burnar.zadanie_ist (zad_key, ist) values (akey, rec1.ist);
+    end if;   
+  end loop;      
+
+ --сохраняем строки
+ --прежде удалим старые
+ delete from burnar.zadanie_stroka where zad_KEY = akey;
+ for rec2 in (select stroka
+                      ,row_number() OVER () as RN
+               from unnest(tmp.aSTROKA)
+              ) 
+  loop
+    if rec2.stroka is not null then
+      insert into burnar.zadanie_stroka (zad_key, stroka, prnum) 
+      values (akey, rec2.stroka, rec2.rn);
+    end if;  
+  end loop;
+
+  
+    /*Тянем значения параметров для данной операции*/
+begin
+  select  t.znach
+    into aot
+    from burnar.zadanie_param t
+   where t.zad_key = aKey and t.parcode in (select * from burnar.ot_params);
+exception
+when no_data_found then aot := null;
+end;
+
+begin
+  select  t.znach
+    into aDo
+    from burnar.zadanie_param t
+   where t.zad_key = aKey and t.parcode in (select * from burnar.do_params)   ;
+exception
+when no_data_found then aDo := null;
+end;
+  
+  
+  istochniki := burnar.zadanie_getoperist(aKey);  --ltrim(istochniki,';');
+--  normaed    := tmp.aNorma[1].norma; --норма на еденицу
+--  normaob    := round(tmp.aNorma[1].norma * vol, 2); --норма на объем
+  normaed    := round(tmp.aNorma[1].norma/60,2);
+  normaob    := round(tmp.aNorma[2].norma/60,2);
+  
+  
+  exception when others then 
+  begin
+    RAISE EXCEPTION 'Процедура zadanie_calc_oper: Код строки= % %', aKey, SQLERRM;
+  end;
+    
+  raise;
+
+end ;
+$$
+LANGUAGE 'plpgsql';
+
+ALTER PROCEDURE burnar.zadanie_calc_operp(integer, integer, numeric, numeric, numeric, varchar, numeric, numeric)
+  OWNER TO postgres;
