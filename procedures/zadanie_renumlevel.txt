@@ -1,0 +1,30 @@
+--Procedure: burnar.zadanie_renumlevel(integer, integer)
+
+--DROP PROCEDURE burnar.zadanie_renumlevel(integer, integer);
+
+CREATE OR REPLACE PROCEDURE burnar.zadanie_renumlevel
+(
+  IN  aparent  integer,
+  IN  anarkey  integer
+)
+AS $$
+declare 
+--процедура перенумерует блок работ, где Parent= AParent
+i numeric:=0;
+rec record;
+begin
+
+  for rec in (select * from burnar.zadanie_oper t where coalesce(t.parent,0) = coalesce(AParent,0) and t.narkey = anarkey order by t.prnum, t.begoperdate)
+    loop
+      i:=i+1;
+      update burnar.zadanie_oper
+        set prnum=i
+        where key=rec.key;
+    end loop;
+
+end ;
+$$
+LANGUAGE 'plpgsql';
+
+ALTER PROCEDURE burnar.zadanie_renumlevel(integer, integer)
+  OWNER TO postgres;
