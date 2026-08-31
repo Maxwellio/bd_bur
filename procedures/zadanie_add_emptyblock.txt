@@ -1,0 +1,115 @@
+--Procedure: burnar.zadanie_add_emptyblock(integer, timestamp without time zone, integer, numeric, varchar, integer)
+
+--DROP PROCEDURE burnar.zadanie_add_emptyblock(integer, timestamp without time zone, integer, numeric, varchar, integer);
+
+CREATE OR REPLACE PROCEDURE burnar.zadanie_add_emptyblock
+(
+  IN  nkey     integer,
+  IN  datein   timestamp without time zone,
+  IN  aparent  integer,
+  IN  aprnum   numeric,
+  IN  textik   varchar,
+  IN  who      integer                    
+)
+AS $$
+declare 
+  CodIzmer public.spr_izmer.key%type;
+  defBegDate timestamp without time zone; --дата по умолчанию для вставляемой операции
+  Res burnar.zadanie_oper.whowork%type;
+  newprnum burnar.zadanie_oper.prnum%type;
+  anewkey burnar.zadanie_oper.key%type;
+  aOPlifetype_add burnar.zadanie_oper.operlifetype%type:=0;
+  rec record;
+  recstru record;  
+begin
+
+if Aparent is null then
+   RAISE EXCEPTION '-20001, Создавать блоки можно только в основных разделах!'; -- нельзя вставлять не в основной блок!
+else
+begin
+
+ --- так как из структуры нельзя выдернуть операцию это надо проверить, ищем тип оперлайфа предка
+if Aparent is not null then
+select o.operlifetype  into aOPlifetype_add from burnar.zadanie_oper o where o.key=Aparent;
+end if;
+if coalesce(aOPlifetype_add,0)<>81  then
+  --Получаем основной измеритель наряда
+  select t.izmer into CodIzmer from burnar.sprnartype t, burnar.defnar d
+  where t.key = d.nartype and d.key = nkey;
+  --если дата применения не задана, берем по умолчанию
+  if dateIn is null then
+    select coalesce(z.begdate,sysdate) into defBegDate from burnar.DEFNARZAD z where z.narkey = nkey;
+  else
+    defBegDate := dateIn;
+  end if;
+  --разбираемся с ресурсом(производителем операции)
+  if who is null then
+    select d.ownernar into Res from burnar.defnar d where d.key = nkey;
+  else
+    Res := who;
+  end if;
+  --сдвигаем нумерацию внутри уровня для добавления куска тем.каталога
+  if APrnum is not null then  newprnum:=APrnum;
+        update burnar.zadanie_oper
+           set prnum =  prnum + 1
+         where coalesce(parent,0) = coalesce( aparent,0)
+           and prnum  >=aPrnum and narkey=nkey;
+
+
+  else newprnum:=1; end if;
+  anewkey := nextval('burnar.seq_zadanie_oper');
+
+      --добавляем операцию в zadanie_oper
+      insert into burnar.zadanie_oper 
+        (key,
+         parent,
+         oper,
+         operlifeid,
+         begoperdate,
+         prnum,
+         whowork,
+         worktype,
+         razdel,
+         narkey,
+         colorsel,
+         volume,
+         locked,
+         operlifetype,
+         OPERLIFETYPEOPER
+         )
+      values
+        ( anewkey,
+          Aparent,
+          null,
+          null,
+          defBegDate, --null, нужна ли дата на блоке?
+          newprnum,
+          Res,
+          null,
+          0, --
+          nkey,
+          0,
+          null, --объем надо искать по дереву САПТП, если он тебе нужен добывай его сам
+          0,
+          null,
+          null
+         );
+
+      insert into burnar.zadanie_anynm 
+      (zad_key, nm )
+      values (anewkey, textik);
+
+
+commit;
+  else
+ RAISE EXCEPTION '-20001, Нельзя добавлять блоки в структуры!'; -- нельзя копировать в структуру
+ end if;
+end;
+end if; 
+
+end ;
+$$
+LANGUAGE 'plpgsql';
+
+ALTER PROCEDURE burnar.zadanie_add_emptyblock(integer, timestamp without time zone, integer, numeric, varchar, integer)
+  OWNER TO postgres;
