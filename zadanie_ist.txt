@@ -1,0 +1,32 @@
+--Table: burnar.zadanie_ist
+
+--DROP TABLE burnar.zadanie_ist;
+
+CREATE TABLE burnar.zadanie_ist (
+  zad_key  integer NOT NULL,
+  ist      numeric NOT NULL
+);
+
+CREATE INDEX ni_ist
+  ON burnar.zadanie_ist
+  (zad_key);
+
+ALTER TABLE burnar.zadanie_ist
+  OWNER TO postgres;
+
+COMMENT ON TABLE burnar.zadanie_ist
+  IS 'Источники операций задания';
+
+COMMENT ON COLUMN burnar.zadanie_ist.zad_key
+  IS 'код строки наряда';
+
+COMMENT ON COLUMN burnar.zadanie_ist.ist
+  IS 'Источник нормирования';
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER, TRUNCATE
+  ON burnar.zadanie_ist
+TO postgres;
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER, TRUNCATE
+  ON burnar.zadanie_ist
+TO burnar_role;
