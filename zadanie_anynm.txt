@@ -1,0 +1,31 @@
+--Table: burnar.zadanie_anynm
+
+--DROP TABLE burnar.zadanie_anynm;
+
+CREATE TABLE burnar.zadanie_anynm (
+  zad_key  integer NOT NULL,
+  nm       varchar(512) NOT NULL,
+  /* Keys */
+  CONSTRAINT ni_anynm
+    UNIQUE (zad_key)
+);
+
+ALTER TABLE burnar.zadanie_anynm
+  OWNER TO postgres;
+
+COMMENT ON TABLE burnar.zadanie_anynm
+  IS 'Произвольные названия блоков операций задания';
+
+COMMENT ON COLUMN burnar.zadanie_anynm.zad_key
+  IS 'Код строки наряда';
+
+COMMENT ON COLUMN burnar.zadanie_anynm.nm
+  IS 'Произвольное имя строки наряда';
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER, TRUNCATE
+  ON burnar.zadanie_anynm
+TO postgres;
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER, TRUNCATE
+  ON burnar.zadanie_anynm
+TO burnar_role;
