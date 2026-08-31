@@ -1,0 +1,28 @@
+--Table: burnar.zadanie_stroka
+
+--DROP TABLE burnar.zadanie_stroka;
+
+CREATE TABLE burnar.zadanie_stroka (
+  zad_key  integer NOT NULL,
+  stroka   varchar(1024) NOT NULL,
+  prnum    numeric(2) NOT NULL,
+  /* Foreign keys */
+  CONSTRAINT fk_zadanieoper6
+    FOREIGN KEY (zad_key)
+    REFERENCES burnar.zadanie_oper("key")
+    ON DELETE CASCADE
+);
+
+ALTER TABLE burnar.zadanie_stroka
+  OWNER TO postgres;
+
+COMMENT ON TABLE burnar.zadanie_stroka
+  IS 'возвращаемые строки операций задания';
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER, TRUNCATE
+  ON burnar.zadanie_stroka
+TO postgres;
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER, TRUNCATE
+  ON burnar.zadanie_stroka
+TO burnar_role;
