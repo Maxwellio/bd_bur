@@ -1,0 +1,158 @@
+--Function: burnar.zadanie_getoperist(integer)
+
+--DROP FUNCTION burnar.zadanie_getoperist(integer);
+
+CREATE OR REPLACE FUNCTION burnar.zadanie_getoperist
+(
+  IN  akey  integer
+)
+RETURNS varchar AS
+$$
+DECLARE
+/*Функция собирает источники нормирования для текущей работы*/  
+  istoch varchar(8192) := '';
+  tempKodSborn numeric := 0;
+--  last_stroka  varchar(500) := '---';  
+  Result varchar := '';
+  rec record;
+BEGIN
+
+if akey is not null then
+for rec in (
+            /*-2-*/
+            with recursive ist2 as
+            (
+            select  q.id, q.parent, q.newident, q.nm, q.pref,q.ord,q.bukva--,q.leaf
+                    ,ARRAY[coalesce(q.ord, 0)::integer] as Sortable
+            from 
+            (       
+            with recursive ist as
+            (
+              select t.id, t.parent, t.newident, t.nm, t.pref,t.ord,t.bukva
+                    -- ,1 leaf --лист                        
+              from istochniki t 
+              where t.id in (select ist from burnar.zadanie_ist where zad_key = akey) --= aKey
+
+              union all
+              select t.id, t.parent, t.newident, t.nm, t.pref,t.ord,t.bukva
+                   --  ,0 leaf -- не лист 
+              from istochniki t
+                   ,ist 
+              where t.id = ist.parent --pcode
+            )
+            select distinct * from ist
+            ) q
+            where q.parent is null
+
+            union all
+            select q.id, q.parent, q.newident, q.nm, q.pref,q.ord,q.bukva--,q.leaf       
+                   --,ARRAY[]::INTEGER[]  || nvl(ist2.ord, 0)::integer || q.ord::integer  as Sortable
+                   ,ist2.Sortable || q.ord::integer  as Sortable
+            from 
+            (       
+            with recursive ist as
+            (
+               select t.id, t.parent, t.newident, t.nm, t.pref,t.ord,t.bukva
+                      --,1 leaf --лист 
+               from istochniki t 
+               where t.id in (select ist from burnar.zadanie_ist where zad_key = akey) --= aKey
+
+               union all
+               select t.id, t.parent, t.newident, t.nm, t.pref,t.ord,t.bukva
+                     -- ,0 leaf --не лист
+                 
+               from istochniki t
+                    ,ist 
+               where t.id = ist.parent --pcode
+            )
+            select distinct * from ist
+            ) q, ist2
+            where ist2.id = q.parent
+
+            )
+            select ist2.* 
+                   /*,case when ist2.bukva is not null then
+                           (replace(coalesce(ist2.pref, ''), ' ', '') || ist2.bukva)
+                         when ist2.bukva is null and ist2.pref is not null then
+                           (replace(ist2.pref, ' ', '') || ist2.ord)                               
+                         when ist2.bukva is null and ist2.pref is null then
+                           ist2.newident
+                    end STROKA*/           
+/* 19022025                   ,case when NULLIF(ist2.bukva,'') is not null then
+                            (replace(coalesce(ist2.pref, ''), ' ', '') || ist2.bukva)
+                         when NULLIF(ist2.bukva,'') is null and NULLIF(ist2.pref,'') is not null then
+                            (replace(ist2.pref, ' ', '') || coalesce(ist2.ord::varchar,'') )                               
+                         when NULLIF(ist2.bukva,'') is null and NULLIF(ist2.pref,'') is null then
+                            ist2.newident
+                   end STROKA
+*/
+                   ,case when NULLIF(ist2.bukva,'') is not null and NULLIF(ist2.ord::varchar,'') is null then
+                            (replace(coalesce(ist2.pref, ''), ' ', '') || ist2.bukva)
+                          when NULLIF(ist2.bukva,'') is not null and NULLIF(ist2.ord::varchar,'') is not null then
+                            (replace(coalesce(ist2.pref, ''), ' ', '') ||coalesce(ist2.ord::varchar,'') || ist2.bukva)
+                            
+                         when NULLIF(ist2.bukva,'') is null and NULLIF(ist2.pref,'') is not null then
+                            (replace(ist2.pref, ' ', '') || coalesce(ist2.ord::varchar,'') )     
+                                                      
+                         when NULLIF(ist2.bukva,'') is null and NULLIF(ist2.pref,'') is null then
+                            ist2.newident
+                    end STROKA                     
+                    
+                   --,ist2.leaf 
+            from ist2              
+            order /*siblings*/ by ist2.newident, ist2.Sortable
+         ) 
+loop
+    if tempKodSborn <> rec.newident::numeric then
+      if substr(istoch, length(istoch) - 1, 1) = ',' then
+        istoch := substr(istoch, 1, length(istoch) - 2);
+      end if;
+      if length(istoch) > 0 then
+        istoch := coalesce(istoch,'') || '; ' || chr(10) || coalesce(rec.newident,'') || ' '; --добавляем код сборника и разделитель
+      else
+        istoch := coalesce(rec.newident,'') || ' ';-- || rec.nm ||' '; --добавляем код сборника и разделитель 
+      end if;
+      tempKodSborn := rec.newident;
+      --        if length(rec.path)>0 then
+      --          istoch:=istoch||rec.path||', '; --добавляем ссылку на источник и добавляем разделитель   
+      --       end if;  
+    else
+      if length(rec.stroka) > 0 then
+        istoch := coalesce(istoch,'') || coalesce(rec.stroka,'') || ', '; --добавляем ссылку на источник и добавляем разделитель   
+      end if;
+    end if;
+    /*Примечание:чтобы убрать лишние запятые можно использовать LEVEL*/
+--end if;
+--last_stroka := rec.stroka;
+end loop;
+--   istoch:=trim(istoch);
+if substr(istoch, length(istoch) - 1, 1) in (',', ';') then
+istoch := substr(istoch, 1, length(istoch) - 2);
+else
+istoch := trim(istoch);
+end if;
+
+else
+istoch := 'Источник не найден!';
+end if; -- if akey is not null 
+
+  return(istoch);
+
+END
+$$
+LANGUAGE 'plpgsql';
+
+ALTER FUNCTION burnar.zadanie_getoperist(integer)
+  OWNER TO postgres;
+
+GRANT EXECUTE
+  ON FUNCTION burnar.zadanie_getoperist(integer)
+TO PUBLIC;
+
+GRANT EXECUTE
+  ON FUNCTION burnar.zadanie_getoperist(integer)
+TO postgres;
+
+GRANT EXECUTE
+  ON FUNCTION burnar.zadanie_getoperist(integer)
+TO burnar_role;
