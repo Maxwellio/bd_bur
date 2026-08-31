@@ -1,0 +1,30 @@
+--Table: burnar.zadanie_norm
+
+--DROP TABLE burnar.zadanie_norm;
+
+CREATE TABLE burnar.zadanie_norm (
+  zad_key  integer NOT NULL,
+  norma    numeric(9,3),
+  prnum    numeric(2) NOT NULL,
+  /* Keys */
+  CONSTRAINT ni_norm
+    PRIMARY KEY (zad_key, prnum)
+);
+
+ALTER TABLE burnar.zadanie_norm
+  OWNER TO postgres;
+
+COMMENT ON TABLE burnar.zadanie_norm
+  IS 'Нормы операций задания';
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER, TRUNCATE
+  ON burnar.zadanie_norm
+TO postgres;
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER, TRUNCATE
+  ON burnar.zadanie_norm
+TO burnar_role;
+
+GRANT SELECT
+  ON burnar.zadanie_norm
+TO out_asubur;
