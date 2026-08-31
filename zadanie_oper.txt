@@ -1,0 +1,130 @@
+--Table: burnar.zadanie_oper
+
+--DROP TABLE burnar.zadanie_oper;
+
+CREATE TABLE burnar.zadanie_oper (
+  "key"             integer NOT NULL PRIMARY KEY,
+  parent            integer,
+  oper              numeric(7),
+  operlifeid        numeric(7),
+  begoperdate       timestamp without time zone,
+  prnum             numeric(5) NOT NULL,
+  whowork           integer,
+  worktype          integer,
+  razdel            numeric(8),
+  narkey            integer NOT NULL,
+  colorsel          numeric NOT NULL DEFAULT 0,
+  volume            numeric(5,2),
+  locked            numeric(1),
+  operlifetype      numeric(7),
+  operlifetypeoper  numeric,
+  tipbur            numeric,
+  /* Keys */
+  CONSTRAINT pk_keyzadanie_oper
+    PRIMARY KEY ("key"),
+  /* Foreign keys */
+  CONSTRAINT fk_parentop
+    FOREIGN KEY (parent)
+    REFERENCES burnar.zadanie_oper("key")
+    ON DELETE CASCADE, 
+  CONSTRAINT fk_workerz2
+    FOREIGN KEY (whowork)
+    REFERENCES burnar.spr_workers("key"), 
+  CONSTRAINT fk_worktype5
+    FOREIGN KEY (worktype)
+    REFERENCES burnar.spr_worktype(id)
+);
+
+CREATE UNIQUE INDEX ni_key_parent
+  ON burnar.zadanie_oper
+  ("key", parent);
+
+CREATE INDEX ni_parent
+  ON burnar.zadanie_oper
+  (parent);
+
+CREATE INDEX ni_zad_narkey
+  ON burnar.zadanie_oper
+  (narkey);
+
+CREATE INDEX nk_zadanie
+  ON burnar.zadanie_oper
+  (narkey, "key", operlifetypeoper, oper);
+
+CREATE TRIGGER trg_log_oper_zad
+  AFTER UPDATE OR INSERT OR DELETE
+  ON burnar.zadanie_oper
+  FOR EACH ROW
+  EXECUTE PROCEDURE burnar.ftrg_log_oper_zad();
+
+CREATE TRIGGER trg_zadanie_oper
+  BEFORE UPDATE OR DELETE
+  ON burnar.zadanie_oper
+  FOR EACH ROW
+  EXECUTE PROCEDURE burnar.ftrg_zadanie_oper();
+
+ALTER TABLE burnar.zadanie_oper
+  OWNER TO postgres;
+
+COMMENT ON TABLE burnar.zadanie_oper
+  IS 'Все операции задания';
+
+COMMENT ON COLUMN burnar.zadanie_oper."key"
+  IS 'код строки';
+
+COMMENT ON COLUMN burnar.zadanie_oper.parent
+  IS 'родитель строки';
+
+COMMENT ON COLUMN burnar.zadanie_oper.oper
+  IS 'код операции';
+
+COMMENT ON COLUMN burnar.zadanie_oper.operlifeid
+  IS 'код оперлайфа';
+
+COMMENT ON COLUMN burnar.zadanie_oper.begoperdate
+  IS 'дата начала действия операции';
+
+COMMENT ON COLUMN burnar.zadanie_oper.prnum
+  IS 'порядковый номер операции внутри своего уровня';
+
+COMMENT ON COLUMN burnar.zadanie_oper.whowork
+  IS 'кто будет выполнять работу (какая бригада или сила)';
+
+COMMENT ON COLUMN burnar.zadanie_oper.worktype
+  IS 'Тип работы';
+
+COMMENT ON COLUMN burnar.zadanie_oper.razdel
+  IS 'код раздела каталога';
+
+COMMENT ON COLUMN burnar.zadanie_oper.narkey
+  IS 'код наряда';
+
+COMMENT ON COLUMN burnar.zadanie_oper.colorsel
+  IS 'цвет выделения работы';
+
+COMMENT ON COLUMN burnar.zadanie_oper.volume
+  IS 'объем работы';
+
+COMMENT ON COLUMN burnar.zadanie_oper.locked
+  IS 'признак блокировки работы';
+
+COMMENT ON COLUMN burnar.zadanie_oper.operlifetype
+  IS 'тип (способ) нормообразования';
+
+COMMENT ON COLUMN burnar.zadanie_oper.operlifetypeoper
+  IS 'тип работы в проекте';
+
+COMMENT ON COLUMN burnar.zadanie_oper.tipbur
+  IS 'Тип бурения (1- Направление, 2-Кондуктор, 3-Тех колонна, 4-Экспл.Колонна, 5-Хвостовик)';
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER, TRUNCATE
+  ON burnar.zadanie_oper
+TO postgres;
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER, TRUNCATE
+  ON burnar.zadanie_oper
+TO burnar_role;
+
+GRANT SELECT
+  ON burnar.zadanie_oper
+TO out_asubur;
