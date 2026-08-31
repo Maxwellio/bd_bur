@@ -1,0 +1,70 @@
+--Table: burnar.narzad
+
+--DROP TABLE burnar.narzad;
+
+CREATE TABLE burnar.narzad (
+  oper         numeric(7) NOT NULL,
+  begoperdate  timestamp without time zone NOT NULL,
+  prnum        numeric(3) NOT NULL,
+  whowork      integer NOT NULL,
+  "key"        integer NOT NULL,
+  worktype     integer,
+  razdel       numeric(8),
+  narkey       integer NOT NULL,
+  sel          numeric(1),
+  /* Keys */
+  CONSTRAINT pk_keynarzad
+    PRIMARY KEY ("key"),
+  /* Foreign keys */
+  CONSTRAINT fk_narkey3
+    FOREIGN KEY (narkey)
+    REFERENCES burnar.defnarzad(narkey)
+    ON DELETE CASCADE, 
+  CONSTRAINT fk_workerz
+    FOREIGN KEY (whowork)
+    REFERENCES burnar.spr_workers("key"), 
+  CONSTRAINT fk_worktype2
+    FOREIGN KEY (worktype)
+    REFERENCES burnar.spr_worktype(id)
+);
+
+ALTER TABLE burnar.narzad
+  OWNER TO postgres;
+
+COMMENT ON TABLE burnar.narzad
+  IS 'полное содержание наряда в части задания';
+
+COMMENT ON COLUMN burnar.narzad.oper
+  IS 'код операции';
+
+COMMENT ON COLUMN burnar.narzad.begoperdate
+  IS 'планируемая дата начала действия операции (примерно)';
+
+COMMENT ON COLUMN burnar.narzad.prnum
+  IS 'порядковый номер операции';
+
+COMMENT ON COLUMN burnar.narzad.whowork
+  IS 'кто будет выполнять работу (какая бригада или сила)';
+
+COMMENT ON COLUMN burnar.narzad."key"
+  IS 'код строки';
+
+COMMENT ON COLUMN burnar.narzad.worktype
+  IS 'Тип работы';
+
+COMMENT ON COLUMN burnar.narzad.razdel
+  IS 'код раздела каталога';
+
+COMMENT ON COLUMN burnar.narzad.narkey
+  IS 'код наряда';
+
+COMMENT ON COLUMN burnar.narzad.sel
+  IS 'выделен ли блок, 1-да, null-нет';
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER, TRUNCATE
+  ON burnar.narzad
+TO postgres;
+
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER, TRUNCATE
+  ON burnar.narzad
+TO burnar_role;
