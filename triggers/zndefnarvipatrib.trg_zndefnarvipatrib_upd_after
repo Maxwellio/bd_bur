@@ -1,0 +1,10 @@
+--Trigger: burnar.zndefnarvipatrib.trg_zndefnarvipatrib_upd_after
+
+/* DROP TRIGGER trg_zndefnarvipatrib_upd_after
+  ON burnar.zndefnarvipatrib; */
+
+CREATE TRIGGER trg_zndefnarvipatrib_upd_after
+  AFTER UPDATE
+  ON burnar.zndefnarvipatrib
+  FOR EACH ROW
+  EXECUTE PROCEDURE burnar.ftrg_zndefnarvipatrib_upd_after();
