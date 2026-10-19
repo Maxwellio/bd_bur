@@ -1,0 +1,112 @@
+--Trigger: burnar.zndefnarvipatrib.trg_log_atrib_vip
+
+/* DROP TRIGGER trg_log_atrib_vip
+  ON burnar.zndefnarvipatrib; */
+
+CREATE TRIGGER trg_log_atrib_vip
+  AFTER UPDATE OR INSERT OR DELETE
+  ON burnar.zndefnarvipatrib
+  FOR EACH ROW
+  EXECUTE PROCEDURE burnar.ftrg_log_atrib_vip();
+
+--declare
+--  c numeric(2) = 0;
+begin
+
+ if TG_OP = 'INSERT' then --if inserting then
+    if new.defnar is not null then
+         insert into burnar.log_atrib
+         select u.users_id    --user_id
+               ,now()         --log_date
+               ,new.defnar    --narkey
+               ,new.parcode   --parnum
+               ,1 as event    --event
+               ,new.val       --new_val 
+               ,null          --old_val
+               ,new.valstr    --new_str
+               ,null          --old_str
+               ,current_setting('USERENV.OS_USER')::varchar  --os_user       
+               ,current_setting('USERENV.HOST')::varchar     --machine
+         from burnar.users u
+         where u.users_id = current_setting('burnar.user_id')::numeric;                       
+    end if;
+ end if;
+ 
+ if TG_OP = 'DELETE' then --if deleting then   
+     insert into burnar.log_atrib
+     select u.users_id    --user_id
+           ,now()         --log_date
+           ,old.defnar    --narkey
+           ,old.parcode   --parnum
+           ,3 as event    --event
+           ,null          --new_val 
+           ,old.val       --old_val
+           ,null          --new_str
+           ,old.valstr    --old_str
+           ,current_setting('USERENV.OS_USER')::varchar  --os_user       
+           ,current_setting('USERENV.HOST')::varchar     --machine
+     from burnar.users u
+     where u.users_id = current_setting('burnar.user_id')::numeric;                      
+ end if;
+
+if TG_OP = 'UPDATE' then --if updating then
+   if new.val <> old.val then
+     insert into burnar.log_atrib
+     select u.users_id    --user_id
+           ,now()         --log_date
+           ,old.defnar    --narkey
+           ,old.parcode   --parnum
+           ,2 as event    --event
+           ,new.val       --new_val 
+           ,old.val       --old_val
+           ,null          --new_str
+           ,null          --old_str
+           ,current_setting('USERENV.OS_USER')::varchar  --os_user       
+           ,current_setting('USERENV.HOST')::varchar     --machine
+     from burnar.users u
+     where u.users_id = current_setting('burnar.user_id')::numeric;                   
+  end if;
+
+  if coalesce(new.znval,0) <> coalesce(old.znval,0) then
+     insert into burnar.log_atrib
+     select u.users_id    --user_id
+           ,now()         --log_date
+           ,old.defnar    --narkey
+           ,old.parcode   --parnum
+           ,2 as event    --event
+           ,new.znval       --new_val 
+           ,old.znval       --old_val
+           ,null          --new_str
+           ,null          --old_str
+           ,current_setting('USERENV.OS_USER')::varchar  --os_user       
+           ,current_setting('USERENV.HOST')::varchar     --machine
+     from burnar.users u
+     where u.users_id = current_setting('burnar.user_id')::numeric;                   
+  end if;
+
+  if (new.valstr<>old.valstr) or ((new.valstr is null) and (old.valstr is not null))
+                                    or ((new.valstr is not null) and (old.valstr is null)) then
+     insert into burnar.log_atrib
+     select u.users_id    --user_id
+           ,now()         --log_date
+           ,old.defnar    --narkey
+           ,old.parcode   --parnum
+           ,2 as event    --event
+           ,null          --new_val 
+           ,null          --old_val
+           ,new.valstr    --new_str
+           ,old.valstr    --old_str
+           ,current_setting('USERENV.OS_USER')::varchar  --os_user       
+           ,current_setting('USERENV.HOST')::varchar     --machine
+     from burnar.users u
+     where u.users_id = current_setting('burnar.user_id')::numeric;                 
+  end if;
+end if;
+
+  if TG_OP = 'UPDATE' or TG_OP = 'INSERT' then
+     return new;
+  elsif TG_OP = 'DELETE' then 
+     return old;  
+  end if;
+
+end;
