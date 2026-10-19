@@ -1,0 +1,22 @@
+--Function: burnar.ftrg_zndefnarvipatrib_upd_after()
+
+--DROP FUNCTION burnar.ftrg_zndefnarvipatrib_upd_after();
+
+CREATE OR REPLACE FUNCTION burnar.ftrg_zndefnarvipatrib_upd_after()
+RETURNS trigger AS
+$$
+declare
+  closed numeric(1):=0;
+--rec record;
+begin
+
+  call  burnar.vipolnenie_Set_SKVPARAM (new.defnar, new.parcode, new.znval, new.val);
+  
+  return new;
+
+end;
+$$
+LANGUAGE 'plpgsql';
+
+ALTER FUNCTION burnar.ftrg_zndefnarvipatrib_upd_after()
+  OWNER TO postgres;
