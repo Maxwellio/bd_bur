@@ -52,7 +52,9 @@ loop
         set begoperdate=newdate
         where key=rec.key;
         
-      newdate:=newdate+1/1440*(rec.norma) * interval '1 day';
+      --newdate:=newdate+1/1440*(rec.norma) * interval '1 day';
+      --старый вариант работал в оракле, но в пг был некорректен и вешал одно время сразу на все работы
+      newdate:=newdate+rec.norma * interval '1 minute';
 
 raise notice 'key, % newdate = %', rec.key, newdate; 
       
