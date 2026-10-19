@@ -1,0 +1,61 @@
+--Trigger: burnar.defnarzad.trg_defnarzad_upd
+
+/* DROP TRIGGER trg_defnarzad_upd
+  ON burnar.defnarzad; */
+
+CREATE TRIGGER trg_defnarzad_upd
+  BEFORE UPDATE
+  ON burnar.defnarzad
+  FOR EACH ROW
+  EXECUTE PROCEDURE burnar.ftrg_defnarzad_upd();
+
+declare
+rec record;
+begin
+
+  if new.closed = 1 then
+    new.closeddate := now();
+  else
+    new.closeddate := null;
+  end if;
+
+  if new.closed = 1 then
+    ------логируем закрытие наряд задания                     
+    insert into burnar.log_nar
+    select u.users_id   --user_id
+           ,now()  --log_date
+           ,old.narkey    --narkey
+           ,(select nm from burnar.defnar  where key = old.narkey)     --nm_nar
+           ,4     --event
+           ,current_setting('USERENV.OS_USER')::varchar  --t.os_user   --os_user
+           ,current_setting('USERENV.HOST')::varchar  --t.machine   --machine
+    from burnar.users u
+    where u.users_id = current_setting('burnar.user_id')::numeric;                    
+                    
+  else              
+    insert into burnar.log_nar
+    select u.users_id   --user_id
+           ,now()  --log_date
+           ,old.narkey    --narkey
+           ,(select nm from burnar.defnar  where key = old.narkey)     --nm_nar
+           ,5     --event
+           ,current_setting('USERENV.OS_USER')::varchar  --t.os_user   --os_user
+           ,current_setting('USERENV.HOST')::varchar  --t.machine   --machine
+    from burnar.users u
+    where u.users_id = current_setting('burnar.user_id')::numeric;
+  end if;
+
+  --если модифицируем дату начала, надо передвинуть все даты операции задания, если нужно
+  if (new.begdate <> old.begdate) 
+     or (old.begdate is null and new.begdate is not null)  then  /* это выражение учитывает первый ввод даты *** 14.07.2011 Frolov_AA*/
+    for rec in (select n.key, n.begoperdate from burnar.narzad n where n.narkey = old.narkey)
+    loop
+       update burnar.narzad  
+       set begoperdate = new.begdate
+       where key = rec.key;
+    end loop;
+  end if;
+  
+  return new;  
+
+end;
