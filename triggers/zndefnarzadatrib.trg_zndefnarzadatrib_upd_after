@@ -1,0 +1,10 @@
+--Trigger: burnar.zndefnarzadatrib.trg_zndefnarzadatrib_upd_after
+
+/* DROP TRIGGER trg_zndefnarzadatrib_upd_after
+  ON burnar.zndefnarzadatrib; */
+
+CREATE TRIGGER trg_zndefnarzadatrib_upd_after
+  AFTER UPDATE
+  ON burnar.zndefnarzadatrib
+  FOR EACH ROW
+  EXECUTE PROCEDURE burnar.ftrg_zndefnarzadatrib_upd_after();
