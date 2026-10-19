@@ -1,0 +1,118 @@
+--Trigger: burnar.zndefnarzadatrib.trg_log_atrib_zad
+
+/* DROP TRIGGER trg_log_atrib_zad
+  ON burnar.zndefnarzadatrib; */
+
+CREATE TRIGGER trg_log_atrib_zad
+  AFTER UPDATE OR INSERT OR DELETE
+  ON burnar.zndefnarzadatrib
+  FOR EACH ROW
+  EXECUTE PROCEDURE burnar.ftrg_log_atrib_zad();
+
+
+--declare
+--rec record;
+begin
+
+
+
+if TG_OP = 'INSERT' and new.defnar is not null then
+    insert into burnar.log_atrib
+    select u.users_id    --user_id
+           ,now()        --,log_date
+           ,new.defnar   --,narkey
+           ,new.parcode  --,parnum
+           ,4            --,event
+           ,new.val      --,new_val
+           ,null         --,old_val
+           ,new.valstr   --,new_str
+           ,null         --,old_str
+           ,current_setting('USERENV.OS_USER')::varchar   --,osuser
+           ,current_setting('USERENV.HOST')::varchar   --,machine
+    from burnar.users u
+    where u.users_id = current_setting('burnar.user_id')::numeric;
+   
+    RETURN new;  
+end if;
+
+if TG_OP = 'DELETE' then --if deleting then
+    insert into burnar.log_atrib
+    select u.users_id    --user_id
+           ,now()        --,log_date
+           ,old.defnar   --,narkey
+           ,old.parcode  --,parnum
+           ,6            --,event
+           ,old.val      --,new_val
+           ,null         --,old_val
+           ,null         --,new_str
+           ,old.valstr   --,old_str
+           ,current_setting('USERENV.OS_USER')::varchar   --,osuser
+           ,current_setting('USERENV.HOST')::varchar   --,machine
+    from burnar.users u
+    where u.users_id = current_setting('burnar.user_id')::numeric;
+   
+    RETURN old;             
+end if;
+
+if TG_OP = 'UPDATE' then --if updating then
+   if new.val <> old.val then
+      insert into burnar.log_atrib
+      select u.users_id    --user_id
+               ,now()        --,log_date
+               ,old.defnar   --,narkey
+               ,old.parcode  --,parnum
+               ,5            --,event
+               ,new.val      --,new_val
+               ,old.val      --,old_val
+               ,null         --,new_str
+               ,null         --,old_str
+               ,current_setting('USERENV.OS_USER')::varchar   --,osuser
+               ,current_setting('USERENV.HOST')::varchar   --,machine
+      from burnar.users u
+      where u.users_id = current_setting('burnar.user_id')::numeric;
+  end if;
+
+
+
+  if coalesce(new.znval, 0) <> coalesce(old.znval,0) then
+      insert into burnar.log_atrib
+      select u.users_id    --user_id
+               ,now()        --,log_date
+               ,old.defnar   --,narkey
+               ,old.parcode  --,parnum
+               ,5            --,event
+               ,new.znval      --,new_val
+               ,old.znval      --,old_val
+               ,null         --,new_str
+               ,null         --,old_str
+               ,current_setting('USERENV.OS_USER')::varchar   --,osuser
+               ,current_setting('USERENV.HOST')::varchar   --,machine
+      from burnar.users u
+      where u.users_id = current_setting('burnar.user_id')::numeric;                   
+  end if;
+
+
+
+    if (new.valstr <> old.valstr) 
+            or ((new.valstr is null) and (old.valstr is not null))
+            or ((new.valstr is not null) and (old.valstr is null)) then
+      insert into burnar.log_atrib
+      select u.users_id    --user_id
+               ,now()        --,log_date
+               ,old.defnar   --,narkey
+               ,old.parcode  --,parnum
+               ,5            --,event
+               ,null      --,new_val
+               ,null      --,old_val
+               ,new.valstr         --,new_str
+               ,old.valstr         --,old_str
+               ,current_setting('USERENV.OS_USER')::varchar   --,osuser
+               ,current_setting('USERENV.HOST')::varchar   --,machine
+      from burnar.users u
+      where u.users_id = current_setting('burnar.user_id')::numeric;                
+    end if;
+    
+    RETURN new;
+end if; --endif updating then
+
+end;
