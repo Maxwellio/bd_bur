@@ -1,0 +1,69 @@
+--Procedure: burnar.zadanie_set_date(integer)
+
+--DROP PROCEDURE burnar.zadanie_set_date(integer);
+
+CREATE OR REPLACE PROCEDURE burnar.zadanie_set_date
+(
+  IN  nkey  integer
+)
+AS $$
+declare 
+--процедура проставляет значения сквозных параметров во всем наряд-заднии
+temp_norm burnar.zadanie_norm.norma%type;
+newdate timestamp without time zone;
+rec record;
+begin
+
+select f.begdate into newdate from burnar.defnarzad f where f.narkey=nkey;
+
+for rec in (WITH RECURSIVE TMP AS(
+                                    select o.*, array[(row_number() over (partition by o.parent order by o.prnum))::integer] as ord2
+                                    from burnar.zadanie_oper o
+                                    where o.parent is null and o.narkey= nkey
+                                    UNION ALL
+                                    select o.*, tmp.ord2 || array[(row_number() over (partition by o.parent order by o.prnum))::integer] as ord2
+                                    from burnar.zadanie_oper o, TMP
+                                    where tmp.key = o.parent
+                                    )
+                                    select tmp.key, tmp.begoperdate, 
+                                           coalesce (case when tmp.operlifetype in (78,79,80,82) then (
+                                                     select t.norma from burnar.zadanie_norm t where t.zad_key=tmp.key and t.prnum=2)
+                                                     else 0 end,0) norma
+                                    from tmp order by ord2
+
+) 
+
+/*(
+            select o.key, o.begoperdate,
+            nvl (case when o.operlifetype in (78,79,80,82) then (
+            
+            select t.norma from zadanie_norm t where t.zad_key=o.key and t.prnum=2)
+            else 0 end ,0) norma
+            
+            from burnar.zadanie_oper o 
+            start with o.parent is null and o.narkey=nkey
+            connect by prior o.key=o.parent 
+            order siblings by o.prnum
+)*/
+
+loop
+
+      update burnar.zadanie_oper
+        set begoperdate=newdate
+        where key=rec.key;
+        
+      newdate:=newdate+1/1440*(rec.norma) * interval '1 day';
+
+raise notice 'key, % newdate = %', rec.key, newdate; 
+      
+end loop;
+
+--commit;
+
+
+end ;
+$$
+LANGUAGE 'plpgsql';
+
+ALTER PROCEDURE burnar.zadanie_set_date(integer)
+  OWNER TO postgres;
