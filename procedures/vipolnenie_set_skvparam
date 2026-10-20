@@ -1,0 +1,48 @@
+--Procedure: burnar.vipolnenie_set_skvparam(integer, numeric, numeric, numeric)
+
+--DROP PROCEDURE burnar.vipolnenie_set_skvparam(integer, numeric, numeric, numeric);
+
+CREATE OR REPLACE PROCEDURE burnar.vipolnenie_set_skvparam
+(
+  IN  anarkey   integer,
+  IN  aparcode  numeric,
+  IN  aznval    numeric,
+  IN  aval      numeric
+)
+AS $$
+--процедура проставляет значения сквозных параметров во всем наряд-заднии
+declare 
+rec record;
+begin
+for rec in (
+            select p.vip_key, p.parcode, ff.newval 
+            from burnar.vipolnenie_param p, 
+                 burnar.vipolnenie_oper o, 
+                 (select c.normparorzn, coalesce((select q.normparorzn from public.common_spr q where q.id=aznval), aval)
+                  newval from  public.common_spr c
+                  where 
+                  c.id=aparcode and c.normparorzn is not null ) ff
+                  where p.parcode=ff.normparorzn 
+                        and o.key=p.vip_key 
+                        and o.narkey=anarkey
+)
+loop
+      --обновляем сквозные параметры
+      update burnar.vipolnenie_param 
+      set znach=rec.newval
+      where vip_key=rec.vip_key 
+      and p.parcode=rec.parcode;
+      --после обновления параметров норма будет удалена ибо не соотвествует текущему значению параметра
+      update burnar.vipolnenie_norm 
+      set NORMA = null 
+      where vip_KEY = rec.vip_key;  
+      -- раз удалили норму - источники ни к чему :)
+      delete from burnar.vipolnenie_ist 
+      where vip_KEY = rec.vip_key;
+end loop;
+end ;
+$$
+LANGUAGE 'plpgsql';
+
+ALTER PROCEDURE burnar.vipolnenie_set_skvparam(integer, numeric, numeric, numeric)
+  OWNER TO postgres;
