@@ -1,0 +1,299 @@
+--Function: burnar.getrabmehburintervals(integer, numeric)
+
+--DROP FUNCTION burnar.getrabmehburintervals(integer, numeric);
+
+CREATE OR REPLACE FUNCTION burnar.getrabmehburintervals
+(
+  IN  anarkey  integer,
+  IN  opkey    numeric
+)
+RETURNS varchar AS
+$$
+DECLARE
+  normaItog numeric := 0; --- ИТОГО НОРМА по ДОП. РАБОТАМ
+
+  tempOperKeys varchar(32000) := ''; --- временно сохраняем код проверяемой операции
+
+  s varchar(32000);
+
+  strOperKeysD varchar(32000) := ''; --- коды операций, для которых нет последующего интервала
+  strTreeOperKeysD varchar(32000) := ''; --- коды операций, для которых нет предыдущего интервала
+  strOperKeys    varchar(32000) := ''; --- предполагаемые доп. работы
+  str            varchar(32000) := ''; --- предполагаемые доп. работы
+  firstKeyDop    varchar(100) := ''; 
+
+  prevGlub numeric := 0; --- значение предыдущей глубины
+  
+  cntMB numeric := 0; --- количество операций по мех. бурению
+  cnt numeric := 0; --- счетчик количества операций, которые начинаются с одной глубины
+
+  vip_minOtZnach numeric := 0; --- значение минимальной глубины, откуда стартует бурение (ВЫПОЛНЕНИЕ)
+  vip_maxDoKey   numeric := 0; --- key для максимальной глубины (ВЫПОЛНЕНИЕ)
+  vip_maxDoZnach numeric := 0; --- значение максимальной глубины (ВЫПОЛНЕНИЕ)
+  recDO record;
+  recOT record;
+  recDO2 record;
+  recOT2 record;
+  recTreeDop record;
+BEGIN
+
+select count(zo.key) 
+into cntMB
+  from burnar.vipolnenie_oper zo
+ where zo.narkey = Anarkey
+   and zo.operlifetypeoper = 203;
+   
+   if cntMB = 0 then return 0;
+   end if;
+
+  ---------------вытягиваем key и значение максимальной глубины (ВЫПОЛНЕНИЕ)
+select max( vv.KEY ), 
+       pp.ZNACH into VIP_MAXDOKEY, 
+       VIP_MAXDOZNACH 
+from burnar.VIPOLNENIE_OPER vv, 
+     burnar.VIPOLNENIE_PARAM pp 
+where pp.ZNACH = ( select max( ( case when vp.PARCODE = 748 
+                                        then znach 
+                                      else
+                                        null 
+                                 end ) ) MAXDO 
+                   from burnar.VIPOLNENIE_OPER vo, 
+                        burnar.VIPOLNENIE_PARAM vp 
+                   where vo.NARKEY = ANARKEY and vo.OPERLIFETYPEOPER = 203 and vo.KEY = vp.VIP_KEY and vp.PARCODE = 748 )
+      and vv.NARKEY = ANARKEY and vv.OPERLIFETYPEOPER = 203 and vv.KEY = pp.VIP_KEY and pp.PARCODE = 748 
+group by pp.znach;
+
+  ------------------ берем значение интервала ДО и сравниваем со значением интервала ОТ
+  for recDO in (select zo.KEY, 
+                       max( zo.OPER ) OPER, 
+                       max( ( case when zp.PARCODE = 748 
+                                     then znach 
+                                   else
+                                     null 
+                              end ) ) ADO 
+                from burnar.VIPOLNENIE_OPER zo, 
+                     burnar.VIPOLNENIE_PARAM zp 
+                where zo.NARKEY = ANARKEY and zo.OPERLIFETYPEOPER = 203 and zo.KEY = zp.VIP_KEY and zp.PARCODE = 748 
+                group by zo.KEY 
+                order by ADO)
+  
+   loop
+    for recOT in (select zo.KEY, 
+                           max( ( case when zp.PARCODE = 747 
+                                         then znach 
+                                       else
+                                         null 
+                                  end ) ) OT 
+                    from burnar.VIPOLNENIE_OPER zo, 
+                         burnar.VIPOLNENIE_PARAM zp 
+                    where zo.NARKEY = ANARKEY and zo.OPERLIFETYPEOPER = 203 and zo.KEY = zp.VIP_KEY and zp.PARCODE = 747 
+                    group by zo.KEY 
+                    order by OT)
+    loop
+      if recOT.Ot = recDO.aDo then
+        ---проверяем на непрерывность интервал
+        begin
+            tempOperKeys := tempOperKeys || ',' || recOT.Key;
+            cnt := cnt + 1;
+        end;
+      end if;
+          
+          prevGlub := recOT.Ot;
+                
+    end loop;
+  
+   tempOperKeys  := Rtrim(Ltrim(tempOperKeys, ','), ',');
+  
+    case
+    --- если нет операций с таким же интервалом ОT, то чистим темп
+      when cnt = 1 then
+        tempOperKeys := '';
+        --- если нет операций, которые бы начинались с этой глубины
+      when cnt = 0 then
+        if cnt = 0 and recDO.Key <> vip_maxDoKey then
+          if strOperKeysD ='' then
+            strOperKeysD := recDO.Key;
+          else 
+            strOperKeysD := strOperKeysD || ',' || recDO.Key;
+          end if;
+        end if;
+        --- наращиваем количество операций, которые начинаются с одной глубины      
+      when cnt > 1 then
+        begin
+          if strOperKeys ='' then
+            strOperKeys := tempOperKeys;
+          else
+            strOperKeys := strOperKeys || ',' || tempOperKeys;
+          end if;
+        end;
+    end case;
+  
+    cnt := 0;
+  end loop;
+
+---------БЕЖИМ В ОБРАТНОМ НАПРАВЛЕНИИ и ищем работы, которые начинаются с "левого" интервала------------------------------------------
+  for recOT2 in (select zo.KEY, 
+                           max( ( case when zp.PARCODE = 747 
+                                         then znach 
+                                       else
+                                         null 
+                                  end ) ) OT 
+                    from burnar.VIPOLNENIE_OPER zo, 
+                         burnar.VIPOLNENIE_PARAM zp 
+                    where zo.NARKEY = ANARKEY and zo.OPERLIFETYPEOPER = 203 and zo.KEY = zp.VIP_KEY and zp.PARCODE = 747 and zp.ZNACH <> vip_minOTZnach 
+                    group by zo.KEY 
+                    order by OT)
+   loop
+
+    for recDO2 in (select zo.KEY, 
+                           max( zo.OPER ) OPER, 
+                           max( ( case when zp.PARCODE = 748 
+                                         then znach 
+                                       else
+                                         null 
+                                  end ) ) ADO 
+                    from burnar.VIPOLNENIE_OPER zo, 
+                         burnar.VIPOLNENIE_PARAM zp 
+                    where zo.NARKEY = ANARKEY and zo.OPERLIFETYPEOPER = 203 and zo.KEY = zp.VIP_KEY and zp.PARCODE = 748 
+                    group by zo.KEY 
+                    order by ADO)
+      loop
+        if recOT2.Ot = recDO2.aDo then
+          ---проверяем на непрерывность интервал
+          begin
+            cnt := cnt + 1;
+          end;
+        end if;
+      end loop;
+  
+    if cnt = 0 then  
+    for recTreeDop in (with t1 as
+                         (select zo.KEY,
+                                 max((case
+                                       when zp.PARCODE = 747 then
+                                        znach
+                                       else
+                                        null
+                                     end)) OT,
+                                 max((case
+                                       when zp.PARCODE = 748 then
+                                        znach
+                                       else
+                                        null
+                                     end)) ADO
+                            from burnar.VIPOLNENIE_OPER zo, burnar.VIPOLNENIE_PARAM zp
+                           where zo.NARKEY = ANARKEY --333274 
+                             and zo.OPERLIFETYPEOPER = 203
+                             and zo.KEY = zp.VIP_KEY
+                             and zp.PARCODE in (747, 748)
+                           group by zo.KEY
+                           order by ADO)
+                        select t1.key
+                          from t1,(with recursive TMP as (select t1.key, t1.ot, t1.ado
+                                                            from t1
+                                                           where t1.ot = recOT2.ot
+                                                          UNION
+                                                          select t1.key, t1.ot, t1.ado
+                                                            from t1, tmp
+                                                           where t1.ot = tmp.ado)
+                                  select * from tmp) q
+                                  where t1.key = q.key)
+
+                       /*(select qq.key
+                         from
+                             (select zo.key,
+                                     max(decode(zp.parcode, 747, znach, null)) ot,
+                                     max(decode(zp.parcode, 748, znach, null)) dom
+                              from vipolnenie_oper  zo,
+                                   vipolnenie_param zp
+                              where zo.narkey = Anarkey
+                                    and zo.operlifetypeoper = 203
+                                    and zo.key = zp.vip_key
+                                    and zp.parcode in (747, 748)
+                              group by zo.key
+                              order by dom) qq
+                         start with qq.ot = recOT2.ot
+                         connect by qq.ot = prior qq.dom)
+                         */
+      loop
+         strTreeOperKeysD  := strTreeOperKeysD  || ',' || recTreeDop.Key;                
+      end loop;   
+    end if;
+                
+    cnt := 0;
+  end loop;
+  
+
+------------------------------------------------------------------------------------------------------------
+
+  strOperKeys  := Rtrim(Ltrim(strOperKeys, ','), ',');
+  strOperKeysD := Rtrim(Ltrim(strOperKeysd, ','), ',');  
+  strTreeOperKeysD := Rtrim(Ltrim(strTreeOperKeysD , ','), ',');
+
+  str :='';
+  
+  if strOperKeys <>'' then str:=strOperKeys;
+  end if;
+  
+  if strTreeOperKeysD <> '' and str <> '' then
+    str := str||','||strTreeOperKeysD;
+  elsif  strTreeOperKeysD <>'' and str = '' then
+    str := strTreeOperKeysD;
+  end if;
+  
+  str:='('||str||')';
+
+
+--raise notice 'strOperKeys=  %', strOperKeys;
+--raise notice 'opKey=  %', opKey;
+--raise notice 'firstKeyDop=  %', firstKeyDop;
+
+if (strOperKeys <> '()' and strOperKeys <> '' 
+                        --and strOperKeys is not null
+                        ) then
+/*
+s := 'select t1.key from (select zo.key, zo.prnum from burnar.vipolnenie_oper zo where (zo.key in (' || strOperKeys ||'))) t1,
+         (select min(zo.prnum) minPRNUM from burnar.vipolnenie_oper zo where (zo.key in (' || strOperKeys ||'))) t2, burnar.vipolnenie_norm vn where t1.prnum = t2.minPRNUM
+         and t1.key = vn.vip_key and vn.prnum = 2'; 
+*/
+
+--raise notice 's=  %', s;
+
+--execute 'select 1111' into s;
+
+--raise notice 'strOperKeys=  %', strOperKeys;
+
+  execute 'select t1.key from (select zo.key, zo.prnum from burnar.vipolnenie_oper zo where (zo.key in (' || strOperKeys ||'))) t1,
+         (select min(zo.prnum) minPRNUM from burnar.vipolnenie_oper zo where (zo.key in (' || strOperKeys ||'))) t2, burnar.vipolnenie_norm vn where t1.prnum = t2.minPRNUM
+         and t1.key = vn.vip_key and vn.prnum = 2' into firstKeyDop;
+
+end if;
+
+if str  <> '()' and opKey is not null then
+begin
+  if firstKeyDop <> '' then --is not null then 
+    execute 
+    ' select 8454143
+      where ' || opKey  || ' in ' || str ||
+          ' and '|| opKey || ' <> ' || firstKeyDop
+              into normaItog;      
+  else
+    execute '   
+      select 8454143
+      where ' || opKey  || ' in ' || str
+              into normaItog;      
+  end if;    
+exception
+  when no_data_found then normaItog := 0;
+  when others then normaItog := 666;
+end;   
+end if;   
+
+ return normaItog;
+
+END
+$$
+LANGUAGE 'plpgsql';
+
+ALTER FUNCTION burnar.getrabmehburintervals(integer, numeric)
+  OWNER TO postgres;
