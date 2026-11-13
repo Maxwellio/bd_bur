@@ -9,8 +9,10 @@
 --   149 — скважина, 470 — куст, 5 — месторождение.
 -- Дискретное значение (znval) раскрывается через public.common_spr.nm.
 --
--- Оргструктура 5–8 — уровни от корня (parent = 0) вниз
--- по бригаде наряда (defnar.ownernar -> spr_workers.org), имя org_stru.nm.
+-- struktura — название подразделения burnar.org_stru с id 5, 6, 7 или 8,
+-- к которому относится наряд. Бригада: defnar.ownernar -> spr_workers.org,
+-- дальше вверх по parent, пока не встретится один из этих id.
+-- Имена столбцов латиницей: PostgreSQL Maestro портит кириллицу.
 --
 -- Наряд попадает в 2026, если дата начала выполнения (defnarvip.begdate)
 -- в 2026 или любой период выполнения пересекает 2026,
@@ -41,21 +43,13 @@ WITH RECURSIVE org_chain AS (
       AND c.parent <> 0
       AND c.steps_up < 30
 ),
-org_levels AS (
-    SELECT
+org_hit AS (
+    SELECT DISTINCT ON (org_id)
         org_id,
-        MAX(nm) FILTER (WHERE lvl = 5) AS org_5,
-        MAX(nm) FILTER (WHERE lvl = 6) AS org_6,
-        MAX(nm) FILTER (WHERE lvl = 7) AS org_7,
-        MAX(nm) FILTER (WHERE lvl = 8) AS org_8
-    FROM (
-        SELECT
-            org_id,
-            nm,
-            MAX(steps_up) OVER (PARTITION BY org_id) - steps_up + 1 AS lvl
-        FROM org_chain
-    ) leveled
-    GROUP BY org_id
+        nm AS struktura
+    FROM org_chain
+    WHERE node_id IN (5, 6, 7, 8)
+    ORDER BY org_id, steps_up
 ),
 zn AS (
     SELECT
@@ -93,30 +87,26 @@ ops AS (
     GROUP BY o.narkey
 )
 SELECT
-    d.key       AS "Код наряда",
-    d.nm        AS "Наряд",
-    skv.val_nm  AS "Скважина",
-    kust.val_nm AS "Куст",
-    mest.val_nm AS "Месторождение",
-    ol.org_5    AS "Оргструктура 5",
-    ol.org_6    AS "Оргструктура 6",
-    ol.org_7    AS "Оргструктура 7",
-    ol.org_8    AS "Оргструктура 8",
-    ops.norma_37594 AS "Норма 37594, ч",
-    ops.fakt_37594  AS "Факт 37594, ч",
-    ops.norma_37618 AS "Норма 37618, ч",
-    ops.fakt_37618  AS "Факт 37618, ч",
-    ops.norma_37595 AS "Норма 37595, ч",
-    ops.fakt_37595  AS "Факт 37595, ч",
-    ops.norma_587   AS "Норма 587, ч",
-    ops.fakt_587    AS "Факт 587, ч"
+    d.nm            AS nazvanie_naryada,
+    skv.val_nm      AS skvazhina,
+    kust.val_nm     AS kust,
+    mest.val_nm     AS mestorozhdenie,
+    oh.struktura    AS struktura,
+    ops.norma_37594 AS norma_37594,
+    ops.fakt_37594  AS fakt_37594,
+    ops.norma_37618 AS norma_37618,
+    ops.fakt_37618  AS fakt_37618,
+    ops.norma_37595 AS norma_37595,
+    ops.fakt_37595  AS fakt_37595,
+    ops.norma_587   AS norma_587,
+    ops.fakt_587    AS fakt_587
 FROM ops
 JOIN burnar.defnar d
   ON d.key = ops.narkey
 JOIN burnar.spr_workers s
   ON s.key = d.ownernar
-LEFT JOIN org_levels ol
-  ON ol.org_id = s.org
+LEFT JOIN org_hit oh
+  ON oh.org_id = s.org
 LEFT JOIN burnar.defnarvip v
   ON v.narkey = d.key
 LEFT JOIN zn skv
