@@ -1,5 +1,5 @@
 -- Выгрузка нарядов за 2026 год по операциям spr_oper 37594, 37618, 37595, 587.
--- В файле пять отдельных запросов: запускать в Maestro по одному.
+-- В файле шесть отдельных запросов: запускать в Maestro по одному.
 --
 -- 1. Норма и факт по каждой операции внутри наряда (не итог всего наряда).
 --    Сумма строк выполнения с этим oper, burnar.vipolnenie_norm, prnum = 2
@@ -360,7 +360,106 @@ WHERE o.oper IN (37594, 37618, 37595, 587)
       )
 ORDER BY d.nm, d.key, o.oper, o."key";
 
--- 5. Названия операций для заголовков выгрузки.
+-- 5. Как запрос 4, но 2026 проверяется у строки операции, а не у наряда.
+--    Строка остаётся, если vipolnenie_oper.begoperdate в 2026
+--    или период этой строки (vipolnenie_oper.period) пересекает 2026.
+WITH RECURSIVE org_chain AS (
+    SELECT
+        o.id        AS org_id,
+        o.id        AS node_id,
+        o.parent,
+        o.nm,
+        1           AS steps_up
+    FROM burnar.org_stru o
+
+    UNION ALL
+
+    SELECT
+        c.org_id,
+        p.id,
+        p.parent,
+        p.nm,
+        c.steps_up + 1
+    FROM org_chain c
+    JOIN burnar.org_stru p ON p.id = c.parent
+    WHERE c.parent IS NOT NULL
+      AND c.parent <> 0
+      AND c.steps_up < 30
+),
+org_hit AS (
+    SELECT DISTINCT ON (org_id)
+        org_id,
+        nm AS struktura
+    FROM org_chain
+    WHERE node_id IN (5, 6, 7, 8)
+    ORDER BY org_id, steps_up
+),
+zn AS (
+    SELECT
+        z.defnar,
+        z.parcode,
+        CASE
+            WHEN z.znval IS NOT NULL THEN cs.nm
+            WHEN z.val IS NOT NULL THEN z.val::varchar
+            ELSE z.valstr
+        END AS val_nm,
+        ROW_NUMBER() OVER (
+            PARTITION BY z.defnar, z.parcode
+            ORDER BY z.prnum
+        ) AS rn
+    FROM burnar.znparams z
+    LEFT JOIN public.common_spr cs ON cs.id = z.znval
+    WHERE z.parcode IN (149, 470, 5)
+)
+SELECT
+    d.nm AS nazvanie_naryada,
+    skv.val_nm AS skvazhina,
+    kust.val_nm AS kust,
+    mest.val_nm AS mestorozhdenie,
+    oh.struktura AS struktura,
+    o."key" AS kod_stroki,
+    o.oper AS kod_operacii,
+    o.begoperdate AS data_operacii,
+    CASE WHEN o.oper = 37594 THEN ROUND(n.norma / 60, 2) END AS norma_37594,
+    CASE WHEN o.oper = 37594 THEN ROUND(n.fact / 60, 2) END AS fakt_37594,
+    CASE WHEN o.oper = 37618 THEN ROUND(n.norma / 60, 2) END AS norma_37618,
+    CASE WHEN o.oper = 37618 THEN ROUND(n.fact / 60, 2) END AS fakt_37618,
+    CASE WHEN o.oper = 37595 THEN ROUND(n.norma / 60, 2) END AS norma_37595,
+    CASE WHEN o.oper = 37595 THEN ROUND(n.fact / 60, 2) END AS fakt_37595,
+    CASE WHEN o.oper = 587 THEN ROUND(n.norma / 60, 2) END AS norma_587,
+    CASE WHEN o.oper = 587 THEN ROUND(n.fact / 60, 2) END AS fakt_587
+FROM burnar.vipolnenie_oper o
+JOIN burnar.defnar d
+  ON d.key = o.narkey
+JOIN burnar.spr_workers s
+  ON s.key = d.ownernar
+LEFT JOIN org_hit oh
+  ON oh.org_id = s.org
+LEFT JOIN burnar.vipolnenie_period per
+  ON per."key" = o.period
+LEFT JOIN burnar.vipolnenie_norm n
+  ON n.vip_key = o."key"
+ AND n.prnum = 2
+LEFT JOIN zn skv
+  ON skv.defnar = d.key AND skv.parcode = 149 AND skv.rn = 1
+LEFT JOIN zn kust
+  ON kust.defnar = d.key AND kust.parcode = 470 AND kust.rn = 1
+LEFT JOIN zn mest
+  ON mest.defnar = d.key AND mest.parcode = 5 AND mest.rn = 1
+WHERE o.oper IN (37594, 37618, 37595, 587)
+  AND (
+        (
+            o.begoperdate >= DATE '2026-01-01'
+        AND o.begoperdate <  DATE '2027-01-01'
+        )
+        OR (
+            per.begoperdate <  DATE '2027-01-01'
+        AND per.outoperdate >= DATE '2026-01-01'
+        )
+      )
+ORDER BY d.nm, d.key, o.oper, o."key";
+
+-- 6. Названия операций для заголовков выгрузки.
 SELECT "key", nm, shortnm
 FROM public.spr_oper
 WHERE "key" IN (37594, 37618, 37595, 587);
