@@ -1,6 +1,8 @@
 -- Выгрузка нарядов за 2026 год по операциям spr_oper 37594, 37618, 37595, 587.
+-- В файле три отдельных запроса: запускать в Maestro по одному.
 --
--- Норма и факт — выполнение, burnar.vipolnenie_norm, prnum = 2
+-- 1. Норма и факт по каждой операции внутри наряда (не итог всего наряда).
+--    Сумма строк выполнения с этим oper, burnar.vipolnenie_norm, prnum = 2
 -- («на объём» и колонка «Факт»). В базе минуты, в выгрузке часы.
 -- Повтор операции в одном наряде суммируется.
 -- Норма «на единицу измерения» — тот же vip_key, prnum = 1.
@@ -128,7 +130,102 @@ OR EXISTS (
 )
 ORDER BY d.nm, d.key;
 
--- Названия операций для заголовков выгрузки.
+-- 2. Все наряды за 2026, в выполнении которых есть хотя бы одна из этих операций.
+--    Без нормы и факта: одна строка на наряд, operacii — какие из четырёх кодов в нём есть.
+WITH RECURSIVE org_chain AS (
+    SELECT
+        o.id        AS org_id,
+        o.id        AS node_id,
+        o.parent,
+        o.nm,
+        1           AS steps_up
+    FROM burnar.org_stru o
+
+    UNION ALL
+
+    SELECT
+        c.org_id,
+        p.id,
+        p.parent,
+        p.nm,
+        c.steps_up + 1
+    FROM org_chain c
+    JOIN burnar.org_stru p ON p.id = c.parent
+    WHERE c.parent IS NOT NULL
+      AND c.parent <> 0
+      AND c.steps_up < 30
+),
+org_hit AS (
+    SELECT DISTINCT ON (org_id)
+        org_id,
+        nm AS struktura
+    FROM org_chain
+    WHERE node_id IN (5, 6, 7, 8)
+    ORDER BY org_id, steps_up
+),
+zn AS (
+    SELECT
+        z.defnar,
+        z.parcode,
+        CASE
+            WHEN z.znval IS NOT NULL THEN cs.nm
+            WHEN z.val IS NOT NULL THEN z.val::varchar
+            ELSE z.valstr
+        END AS val_nm,
+        ROW_NUMBER() OVER (
+            PARTITION BY z.defnar, z.parcode
+            ORDER BY z.prnum
+        ) AS rn
+    FROM burnar.znparams z
+    LEFT JOIN public.common_spr cs ON cs.id = z.znval
+    WHERE z.parcode IN (149, 470, 5)
+),
+naryady AS (
+    SELECT
+        o.narkey,
+        string_agg(DISTINCT o.oper::varchar, ', ' ORDER BY o.oper::varchar) AS operacii
+    FROM burnar.vipolnenie_oper o
+    WHERE o.oper IN (37594, 37618, 37595, 587)
+    GROUP BY o.narkey
+)
+SELECT
+    d.key           AS kod_naryada,
+    d.nm            AS nazvanie_naryada,
+    skv.val_nm      AS skvazhina,
+    kust.val_nm     AS kust,
+    mest.val_nm     AS mestorozhdenie,
+    oh.struktura    AS struktura,
+    v.begdate       AS data_nachala,
+    n.operacii      AS operacii
+FROM naryady n
+JOIN burnar.defnar d
+  ON d.key = n.narkey
+JOIN burnar.spr_workers s
+  ON s.key = d.ownernar
+LEFT JOIN org_hit oh
+  ON oh.org_id = s.org
+LEFT JOIN burnar.defnarvip v
+  ON v.narkey = d.key
+LEFT JOIN zn skv
+  ON skv.defnar = d.key AND skv.parcode = 149 AND skv.rn = 1
+LEFT JOIN zn kust
+  ON kust.defnar = d.key AND kust.parcode = 470 AND kust.rn = 1
+LEFT JOIN zn mest
+  ON mest.defnar = d.key AND mest.parcode = 5 AND mest.rn = 1
+WHERE (
+        v.begdate >= DATE '2026-01-01'
+    AND v.begdate <  DATE '2027-01-01'
+)
+OR EXISTS (
+    SELECT 1
+    FROM burnar.vipolnenie_period p
+    WHERE p.narkey = d.key
+      AND p.begoperdate <  DATE '2027-01-01'
+      AND p.outoperdate >= DATE '2026-01-01'
+)
+ORDER BY d.nm, d.key;
+
+-- 3. Названия операций для заголовков выгрузки.
 SELECT "key", nm, shortnm
 FROM public.spr_oper
 WHERE "key" IN (37594, 37618, 37595, 587);
