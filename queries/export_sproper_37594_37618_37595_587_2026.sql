@@ -1,4 +1,4 @@
--- Выгрузка нарядов за 2026 год по операциям spr_oper 37594, 37618, 37595.
+-- Выгрузка нарядов за 2026 год по операциям spr_oper 37594, 37618, 37595, 587.
 --
 -- Норма и факт — выполнение, burnar.vipolnenie_norm, prnum = 2
 -- («на объём» и колонка «Факт»). В базе минуты, в выгрузке часы.
@@ -14,7 +14,7 @@
 --
 -- Наряд попадает в 2026, если дата начала выполнения (defnarvip.begdate)
 -- в 2026 или любой период выполнения пересекает 2026,
--- и в выполнении есть хотя бы одна из трёх операций.
+-- и в выполнении есть хотя бы одна из этих операций.
 -- Отбор по дате создания: заменить WHERE на
 --   d.createdate >= DATE '2026-01-01' AND d.createdate < DATE '2027-01-01'.
 
@@ -82,12 +82,14 @@ ops AS (
         ROUND(SUM(n.norma) FILTER (WHERE o.oper = 37618) / 60, 2) AS norma_37618,
         ROUND(SUM(n.fact)  FILTER (WHERE o.oper = 37618) / 60, 2) AS fakt_37618,
         ROUND(SUM(n.norma) FILTER (WHERE o.oper = 37595) / 60, 2) AS norma_37595,
-        ROUND(SUM(n.fact)  FILTER (WHERE o.oper = 37595) / 60, 2) AS fakt_37595
+        ROUND(SUM(n.fact)  FILTER (WHERE o.oper = 37595) / 60, 2) AS fakt_37595,
+        ROUND(SUM(n.norma) FILTER (WHERE o.oper = 587) / 60, 2) AS norma_587,
+        ROUND(SUM(n.fact)  FILTER (WHERE o.oper = 587) / 60, 2) AS fakt_587
     FROM burnar.vipolnenie_oper o
     LEFT JOIN burnar.vipolnenie_norm n
            ON n.vip_key = o.key
           AND n.prnum = 2
-    WHERE o.oper IN (37594, 37618, 37595)
+    WHERE o.oper IN (37594, 37618, 37595, 587)
     GROUP BY o.narkey
 )
 SELECT
@@ -105,7 +107,9 @@ SELECT
     ops.norma_37618 AS "Норма 37618, ч",
     ops.fakt_37618  AS "Факт 37618, ч",
     ops.norma_37595 AS "Норма 37595, ч",
-    ops.fakt_37595  AS "Факт 37595, ч"
+    ops.fakt_37595  AS "Факт 37595, ч",
+    ops.norma_587   AS "Норма 587, ч",
+    ops.fakt_587    AS "Факт 587, ч"
 FROM ops
 JOIN burnar.defnar d
   ON d.key = ops.narkey
@@ -137,4 +141,4 @@ ORDER BY d.nm, d.key;
 -- Названия операций для заголовков выгрузки.
 SELECT "key", nm, shortnm
 FROM public.spr_oper
-WHERE "key" IN (37594, 37618, 37595);
+WHERE "key" IN (37594, 37618, 37595, 587);
