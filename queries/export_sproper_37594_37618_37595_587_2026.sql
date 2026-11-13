@@ -225,13 +225,14 @@ OR EXISTS (
 )
 ORDER BY d.nm, d.key;
 
--- 3. Норма и факт по каждой операции за 2026, без наряда.
---    Все строки этой операции по всем нарядам года складываются в одну строку.
+-- 3. Норма и факт по каждой строке операции за 2026, без наряда.
+--    Строки не складываются. Наряд нужен только чтобы оставить работы 2026 года.
 SELECT
-    o.oper AS kod_operacii,
-    so.nm  AS nazvanie_operacii,
-    ROUND(SUM(n.norma) / 60, 2) AS norma,
-    ROUND(SUM(n.fact) / 60, 2)  AS fakt
+    o."key" AS kod_stroki,
+    o.oper  AS kod_operacii,
+    so.nm   AS nazvanie_operacii,
+    ROUND(n.norma / 60, 2) AS norma,
+    ROUND(n.fact / 60, 2)  AS fakt
 FROM burnar.vipolnenie_oper o
 JOIN burnar.defnar d
   ON d.key = o.narkey
@@ -256,8 +257,7 @@ WHERE o.oper IN (37594, 37618, 37595, 587)
               AND p.outoperdate >= DATE '2026-01-01'
         )
       )
-GROUP BY o.oper, so.nm
-ORDER BY o.oper;
+ORDER BY o.oper, o."key";
 
 -- 4. Как запрос 1, но повторы одной операции в наряде не складываются:
 --    каждая строка выполнения выводится отдельно.
