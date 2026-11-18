@@ -1,0 +1,122 @@
+--Procedure: burnar.createnar(integer, integer, integer, numeric)
+
+--DROP PROCEDURE burnar.createnar(integer, integer, integer, numeric);
+
+CREATE OR REPLACE PROCEDURE burnar.createnar
+(
+  IN     atypenar    integer,
+  IN     aownernar   integer,
+  IN     anarauthor  integer,
+  INOUT  result      numeric
+)
+AS $$
+--создает общее описание наряда и формирует в части задания
+declare
+  aNarKey burnar.defnar.key%type;
+  CodIzmer burnar.sprnartype.izmer%type;
+  findizmer spr_izmer.key%type;
+  countoplife numeric(2):=0;
+  ms1 varchar(256);
+  ms2 varchar(256);
+  err numeric(5);
+  ikey oper_izmer.key%type;
+begin
+
+  /********************************формируем общую инфу наряда********************************************/
+  --формируем код, описание, тип наряда
+  aNarKey := NEXTVAL('burnar.seq_defnar');
+  --инфа о типе создаваемого наряда
+ -- select tr.nartype into aTypeNar from exper.tematic_razdel tr where tr.id = Razdel;
+  --для данного типа нарядов вытаскиваем главный(основной) измеритель
+  select izmer into CodIzmer from burnar.sprnartype t where t.key = aTypeNar;
+  --по бригаде(звену), пытаемся найти главного для данного ресурса
+
+  insert into burnar.defnar(KEY, OWNERNAR, NARAUTHOR, NARTYPE, brigadir)
+  values (aNarKey, aOWNERNAR, aNARAUTHOR, aTypeNar, null 
+  );
+  --глобальные, настраиваемые параметры наряда в целом
+  insert into burnar.znparams(defnar,prnum,parcode)
+  (select aNarKey, nt.prnum, nt.parcode from burnar.narparamscfg nt where nt.nartype=aTypeNar);
+
+  /*****************************************************************************************************/
+  --общее описание задания
+  insert into burnar.defnarzad(NARKEY) values (aNarKey);
+
+  /***************************формируем сквозные параметры для данного вида наряда**********************/
+  --план
+  insert into burnar.zndefnarzadatrib (defnar,prnum,parcode)
+  (select aNarKey, nt.prnum, nt.parcode from burnar.nartypeatribs nt where nt.lnkdef=aTypeNar);
+
+  /****************формируем настройки всей отчетности, если она есть для данного вида нарядов**************/
+  --1.для сохраняемых значений параметров
+  --a)план
+  insert into burnar.znrepparsz (defnar,repid,parcode,prnum,repparname,val)
+  --decode добавлен 18.05.2011 нужен для отчета!!!!!
+  (select aNarKey,r.id,rp.parcode,rp.prnum,rp.repparname, 
+          case rp.parcode when 2601 then 0 
+                          when 2602 then 1 
+                          when 2683 then 0 
+                          else null 
+          end 
+   from burnar.reports r,burnar.sprnartype t ,burnar.repparamscfg rp
+   where r.nartype= aTypeNar and r.nartype=t.key and rp.repid=r.id);
+
+  --2.для значений подписей
+  insert into burnar.znpodpis (defnar,repid,numatrib,idpeople)
+  (select aNarKey,r.id,p.numatrib,p.defvalpeople from burnar.reports r,burnar.sprnartype t ,burnar.podpiscfg p
+   where r.nartype= aTypeNar and r.nartype=t.key and p.repid=r.id);
+  /************************************конец формирования настроек системы отчетности**********************/
+ /*
+  --заносим операции выбранного раздела для задания
+  for rec in (
+    select
+      t.oper --"Код операции"
+      ,rownum pr --дефолтовый порядок пусть будет такой
+      ,t.id --"Код раздела"
+    from exper.tematic_razdel t
+    where t.oper is not null --сами разделы в наряде не нужны
+    start with t.parent_id = Razdel
+    connect by prior t.id = t.parent_id order siblings by t.ord)
+  loop
+      BEGIN
+        select o.izmer,o.key into findizmer,ikey from exper.oper_izmer o where o.oper=rec.oper and o.izmer=CodIzmer;
+      EXCEPTION
+        WHEN NO_DATA_FOUND THEN
+          begin
+            select e.errkey, e.msg into err,ms1 from errormsgs e where e.errkey=errmsgs.err_izmernotfound;
+            select e.msg into ms2 from errormsgs e where e.errkey=errmsgs.err_narnotcreate;
+            RAISE_APPLICATION_ERROR(err, CHR(10)||REPLACE(ms1,'%s',rec.oper)||CHR(10)||ms2);
+          end;
+      END;
+
+      --проверка на существование хотя бы одного оперлайфа
+      select count(l.id) into countoplife from exper.operlife l where l.operizmer=ikey;
+      if countoplife=0 then
+        select e.errkey, e.msg into err,ms1 from errormsgs e where e.errkey=errmsgs.err_notfindoplife;
+        select e.msg into ms2 from errormsgs e where e.errkey=errmsgs.err_narnotcreate;
+        RAISE_APPLICATION_ERROR(err, CHR(10)||REPLACE(ms1,'%s',rec.oper)||CHR(10)||ms2);
+      end if;
+
+      insert into narzad (narkey,OPER,BEGOPERDATE,PRNUM,WHOWORK,RAZDEL)
+      values (anarkey,rec.oper,sysdate,rec.pr,aownernar,rec.id);
+  end loop;
+
+  --формируем структуры для хранения параметров и норм
+  BuildStruNarZ(aNarKey,CodIzmer);
+ 
+  result := aNarKey;*/
+ commit;
+
+result := aNarKey; --11.10
+/*
+exception
+  WHEN others THEN rollback;
+  raise;  --генерим старое исключение для юзера
+*/
+
+end ;
+$$
+LANGUAGE 'plpgsql';
+
+ALTER PROCEDURE burnar.createnar(integer, integer, integer, numeric)
+  OWNER TO postgres;
