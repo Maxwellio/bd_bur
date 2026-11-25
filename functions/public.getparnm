@@ -1,0 +1,68 @@
+--Function: public.getparnm(numeric)
+
+--DROP FUNCTION public.getparnm(numeric);
+
+CREATE OR REPLACE FUNCTION public.getparnm
+(
+  IN  pcode  numeric
+)
+RETURNS varchar AS
+$$
+DECLARE  
+  str varchar(150) := ''; --!В отличии от оракла инициализируем переменную str. Иначе будет везде NULL конкатенироваться с тексто 
+  Result varchar(150);
+  
+  rec record;
+begin
+
+  for rec in
+  (
+     with recursive cs as
+     (
+       select t.*, 1 as level 
+       from public.common_spr t 
+       where t.id = pcode
+       union all
+       select t.*, cs.level + 1 as level 
+       from public.common_spr t, cs 
+       where t.id = cs.parent_id 
+             and t.parent_id is not null
+     )
+     select * from cs
+     order by cs.level desc
+  )
+  loop
+     --RAISE NOTICE ' rec.nm= % ', rec.nm;
+     str := str || ',' || rec.nm;
+     --RAISE NOTICE ' str= % ', str;
+  end loop;
+
+  Result := Ltrim(Rtrim(str,','),',');
+
+  return(Result); 
+end
+$$
+LANGUAGE 'plpgsql';
+
+ALTER FUNCTION public.getparnm(numeric)
+  OWNER TO postgres;
+
+GRANT EXECUTE
+  ON FUNCTION public.getparnm(numeric)
+TO PUBLIC;
+
+GRANT EXECUTE
+  ON FUNCTION public.getparnm(numeric)
+TO postgres;
+
+GRANT EXECUTE
+  ON FUNCTION public.getparnm(numeric)
+TO burnar_role;
+
+GRANT EXECUTE
+  ON FUNCTION public.getparnm(numeric)
+TO buildrig_role;
+
+GRANT EXECUTE
+  ON FUNCTION public.getparnm(numeric)
+TO osvoenie_role;
