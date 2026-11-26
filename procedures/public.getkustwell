@@ -1,0 +1,334 @@
+--Procedure: public.getkustwell(varchar)
+
+--DROP PROCEDURE public.getkustwell(varchar);
+
+CREATE OR REPLACE PROCEDURE public.getkustwell
+(
+  IN  tehmesto  varchar = ''::character varying
+)
+AS $$
+declare
+--PRAGMA AUTONOMOUS_TRANSACTION;
+--  spr_MEST numeric := 5;      --Код справочника МЕСТОРОЖДЕНИЕ в common_spr 
+--  spr_AREA numeric := 3015;   --Код справочника НЕФТЕГАЗОВЫЕ ПЛОЩАДИ в common_spr  
+  spr_KUST numeric := 470;    --Код справочника КУСТ в common_spr
+  spr_WELL numeric := 149;    --Код справочника СКВАЖИНА в common_spr    
+  --check_cnt numeric;
+  commonID public.common_spr.id%type;
+  cid public.common_spr.id%type;
+  cnm public.common_spr.nm%type;
+  mest public.object_atribute.znach%type;
+  wellID public.object_atribute.znach%type;
+  kustID public.object_atribute.znach%type;
+  techPlace public.object_atribute.znach%type;
+  prc_nm varchar(20) := 'GetKustWell';
+  --@expercombat  линк на боевой EXPER
+  curKUST record;
+  curWELL record;
+begin
+  
+  for curKUST in (/*select distinct t.KUST_ID, t.KUST_NAME, t.MEST_MDM, 
+                         case when length(TehMesto) >0 then 
+                                t.WELL_TECHPLACE 
+                              else 
+                                t.MEST_MDM::varchar
+                         end  TehMest --Фролов А.А. 23.09.2021
+                  from IEVC_CUR_OBJECTS2 t  --Фролоа 21.09.2023 АСУ сами нам заливают данные в таблицу IEVC_CUR_OBJECTS2
+                  order by t.kust_name*/
+                        with spr as (
+                                      select o.znach --into check_cnt -- Фролов 18.07.2024
+                                      from public.object_atribute o, public.common_spr c
+                                      where c.parent_id = 470 --spr_KUST
+                                            and c.id = o.keyspr                   
+                                            and o.atribname = 'KEY_UBR_KUST'
+                                    )
+                        select * from
+                        (
+                        select curKUST2.*, ttt.*                      
+                                
+                                ,(select count(*) --count(1) 
+                                 from spr
+                                 where spr.znach = curKUST2.Kust_Id::varchar) as check_cnt                        
+                                         
+                                ,case when (ttt.cnm <> curKUST2.Kust_Name) or (ttt.mest <> curKUST2.MEST_MDM::varchar) then
+                                          1
+                                      else
+                                          0
+                                 end needupdate                         
+                        from (       
+                                select distinct t.KUST_ID, t.KUST_NAME, t.MEST_MDM 
+                                     ,case when length(TehMesto) > 0 then -- 
+                                            t.WELL_TECHPLACE 
+                                          else 
+                                            t.MEST_MDM::varchar
+                                     end  TehMest --Фролов А.А. 23.09.2021
+                                from IEVC_CUR_OBJECTS2 t  --Фролоа 21.09.2023 АСУ сами нам заливают данные в таблицу IEVC_CUR_OBJECTS2        
+                                --limit 10         
+                             ) curKUST2
+                             left join
+                                 ( select t.id cid, t.nm cnm, o2.znach mest, o1.znach tkust --into cid, cnm, mest
+                                      from public.common_spr t, public.object_atribute o1, public.object_atribute o2
+                                      where t.parent_id = 470 --spr_KUST
+                                            and o1.keyspr = t.id
+                                            and o2.keyspr = t.id           
+                                            and o1.atribname = 'KEY_UBR_KUST'
+                                            and o2.atribname = 'KEY_MEST_MDM'           
+                                            --and o1.znach = curKust.Kust_Id::varchar
+                                 ) ttt on ttt.tkust = curKust2.Kust_Id::varchar
+                                  
+                        ) big
+                        where (big.check_cnt = 0 or big.check_cnt > 1) or (big.check_cnt = 1 and big.needupdate = 1)                           
+                  )
+  loop
+   if (coalesce(length(TehMesto), 0) = 0) or (length(TehMesto) > 0 and instr(curKUST.Tehmest,TehMesto) > 0) then --`если на входе указано техместо, то работаем только по нему Фролов АА 23.09.2021
+                 
+        /*select count(*) into check_cnt -- Фролов 18.07.2024
+        from public.object_atribute o, public.common_spr c
+        where
+               c.parent_id = spr_KUST
+           and c.id = o.keyspr 
+           and o.znach = curKUST.Kust_Id::varchar
+           and o.atribname = 'KEY_UBR_KUST';*/              
+
+         if curKUST.check_cnt > 1 then --Логирование
+             insert into public.log_mdm (dt, proc_nm, action, mdm_key, mdm_nm, saptp_key, message, p1, p2, p3, p4)
+             values (now()
+                     ,prc_nm
+                     ,'ERROR.KUST'
+                     ,curKUST.Kust_Id
+                     ,curKUST.KUST_NAME
+                     ,''
+                     ,'Ошибка! В справочнике несколько записей с кодом = ' || curKUST.Kust_Id
+                     ,''
+                     ,''
+                     ,''
+                     ,''
+                     );
+         end if;      
+
+         if curKUST.check_cnt = 1 then --изменение &curWELL.needupdate = 1 
+              /*select t.id, t.nm, o2.znach
+              into cid, cnm, mest
+              from public.common_spr t, public.object_atribute o1, public.object_atribute o2
+              where t.parent_id = spr_KUST
+                    and o1.keyspr = t.id
+                    and o2.keyspr = t.id           
+                    and o1.atribname = 'KEY_UBR_KUST'
+                    and o2.atribname = 'KEY_MEST_MDM'           
+                    and o1.znach = curKust.Kust_Id::varchar;*/
+             
+             --if (cnm <> curKUST.Kust_Name::varchar) or (mest <> curKUST.MEST_MDM::varchar ) then 
+               update public.common_spr  
+                      set nm = curKUST.Kust_Name 
+               where id = curKUST.cid;
+               update public.object_atribute  
+                      set znach = curKUST.MEST_MDM 
+               where keyspr = curKUST.cid 
+                     and atribname = 'KEY_MEST_MDM';               
+
+               --Логирование
+               insert into public.log_mdm (dt, proc_nm, action, mdm_key, mdm_nm, saptp_key, message, p1, p2, p3, p4)
+               values (now()
+                         ,prc_nm
+                         ,'UPDATE.KUST'
+                         ,curKUST.Kust_Id
+                         ,cnm
+                         ,cid
+                         ,'OK. KUST'
+                         ,mest
+                         ,curKUST.Kust_Name
+                         ,curKUST.MEST_MDM
+                         ,''
+                         );             
+         end if; --if curKUST.check_cnt = 1 then --изменение &curWELL.needupdate = 1
+
+         if curKUST.check_cnt = 0 then --добавление            
+              insert into public.common_spr (id, nm, parent_id)
+              values (NEXTVAL('public.SEQ_COMMONSPR'), coalesce(curKUST.Kust_Name, 'нет'), spr_KUST)
+              returning id into commonID;
+
+              insert into public.object_atribute (atribname, znach, keyspr, ord)
+              values ('KEY_UBR_KUST', curKUST.Kust_Id, commonID, 1),
+                     ('KEY_MEST_MDM', curKUST.MEST_MDM, commonID, 2);
+         
+             -------------------------------------------------------------------------------------------------------------------------------------
+             --Логирование
+             insert into public.log_mdm (dt, proc_nm, action, mdm_key, mdm_nm, saptp_key, message, p1, p2, p3, p4)
+             values (now()
+                     ,prc_nm
+                     ,'INSERT.KUST'
+                     ,curKUST.Kust_Id
+                     ,curKUST.Kust_Name
+                     ,commonID
+                     ,'OK. KUST'
+                     ,curKUST.MEST_MDM
+                     ,''
+                     ,''
+                     ,''
+                     );
+         end if; --if curKUST.check_cnt = 0 then --добавление       
+         
+         --commit;
+         
+         --check_cnt := 0;
+
+       end if;-- проверка на те техместо  
+         
+   end loop;
+   commit; --19072024
+
+      for curWELL in (      --select distinct t.WELL_ID, t.WELL_NAME, t.KUST_ID, t.WELL_TECHPLACE
+                            --from IEVC_CUR_OBJECTS2 t --Фролоа 21.09.2023 АСУ сами нам заливают данные в таблицу IEVC_CUR_OBJECTS2
+                            --order by t.KUST_ID
+                      
+                            with spr as (select o.znach --into check_cnt
+                                  from public.object_atribute o, public.common_spr c
+                                  where o.keyspr = c.id
+                                        and c.parent_id = 149 
+                                        --and o.znach = curWELL2.WELL_ID::varchar
+                                        and o.atribname = 'KEY_UBR_WELL'
+                                  )
+                            select * from
+                            (
+                            select curWELL2.*, ttt.*
+                                                   
+                                    /*,(select count(*) --into check_cnt
+                                     from public.object_atribute o, public.common_spr c
+                                     where o.keyspr = c.id
+                                           and c.parent_id = 149 
+                                           and o.znach = curWELL2.WELL_ID::varchar
+                                           and o.atribname = 'KEY_UBR_WELL') as check_cnt*/
+                                    ,(select count(1) --* 
+                                             --count(*) 
+                                     from spr
+                                     where spr.znach = curWELL2.WELL_ID::varchar) as check_cnt
+                                                    
+                                             
+                                    ,case when (ttt.nm <> curWELL2.Well_Name) or (ttt.kustID <> curWELL2.Kust_Id::varchar) or (ttt.techPlace <> curWELL2.Well_Techplace) then
+                                              1
+                                          else
+                                              0
+                                     end needupdate                        
+                            from (
+                                    select distinct t.WELL_ID, t.WELL_NAME, t.KUST_ID, t.WELL_TECHPLACE
+                                    from IEVC_CUR_OBJECTS2 t
+                                    --order by t.KUST_ID
+                                    --limit 100
+                                 ) curWELL2
+                                 left join             
+                                      (            
+                                         select t.id cid, t.nm, o1.znach wellID, o2.znach kustID, o3.znach techplace
+                                         from public.common_spr t, public.object_atribute o1, public.object_atribute o2, public.object_atribute o3
+                                         where t.parent_id = 149
+                                                and o1.keyspr = t.id
+                                                and o2.keyspr = t.id           
+                                                and o3.keyspr = t.id
+                                                and o1.atribname = 'KEY_UBR_WELL'
+                                                and o2.atribname = 'KEY_UBR_KUST'           
+                                                and o3.atribname = 'WELL_TECHPLACE'
+                                      ) ttt on ttt.wellID = curWELL2.WELL_ID::varchar
+                                      
+                            ) big
+                            where (big.check_cnt = 0 or big.check_cnt > 1) or (big.check_cnt = 1 and big.needupdate = 1)
+                      
+                      )
+                      
+      loop
+     
+        --`если на входе указано техместо, то работаем только по нему 23.09.2021
+        if (coalesce(length(TehMesto), 0) = 0) or (length(TehMesto) > 0 and instr(curWELL.WELL_TECHPLACE,TehMesto) > 0) then
+
+            if curWELL.check_cnt > 1 then
+                 --Логирование
+                 insert into public.log_mdm (dt, proc_nm, action, mdm_key, mdm_nm, saptp_key, message, p1, p2, p3, p4)
+                 values (now()
+                         ,prc_nm
+                         ,'ERROR.WELL'
+                         ,curWELL.WELL_ID
+                         ,curWELL.WELL_NAME
+                         ,''
+                         ,'Ошибка! В справочнике несколько записей с кодом = ' || curWELL.WELL_ID
+                         ,''
+                         ,''
+                         ,''
+                         ,''
+                         );
+                 --commit;
+            end if;    
+
+            if curWELL.check_cnt = 1 then --изменение &curWELL.needupdate = 1 
+                             
+               update public.common_spr 
+               set nm = curWELL.Well_Name 
+               where id = curWELL.cid;
+               
+               update public.object_atribute 
+               set znach = curWELL.KUST_ID 
+               where keyspr = curWELL.cid 
+                     and atribname = 'KEY_UBR_KUST';
+                                
+               update public.object_atribute 
+               set znach = curWELL.Well_Techplace 
+               where keyspr = curWELL.cid 
+                     and atribname = 'WELL_TECHPLACE';           
+    
+               --Логирование
+               insert into public.log_mdm (dt, proc_nm, action, mdm_key, mdm_nm, saptp_key, message, p1, p2, p3, p4)
+               values (now()
+                      ,prc_nm
+                      ,'UPDATE.WELL'
+                      ,curWELL.Well_Id
+                      ,cnm
+                      ,cid
+                      ,'OK. WELL'
+                      ,kustID
+                      ,curWELL.Kust_Id
+                      ,curWELL.Well_Name
+                      ,curWELL.Well_Techplace
+                      );       
+            end if; --endif curWELL.check_cnt = 1 then --изменение
+         
+         if curWELL.check_cnt = 0 then --добавление
+              insert into public.common_spr (id, nm, parent_id)
+              values (NEXTVAL('public.SEQ_COMMONSPR'), curWELL.Well_Name, spr_WELL)
+              returning id  into commonID;              
+              --commit;
+
+              insert into public.object_atribute (atribname, znach, keyspr, ord)
+              values ('KEY_UBR_WELL', curWELL.WELL_ID, commonID, 1),
+                     ('KEY_UBR_KUST', curWELL.KUST_ID, commonID, 2),
+                     ('WELL_TECHPLACE', curWELL.WELL_TECHPLACE, commonID, 3);
+              --commit;
+                
+              --Логирование
+              insert into public.log_mdm (dt, proc_nm, action, mdm_key, mdm_nm, saptp_key, message, p1, p2, p3, p4)
+              values (now()
+                     ,prc_nm
+                     ,'INSERT.WELL'
+                     ,curWELL.Well_Id
+                     ,curWELL.Well_Name
+                     ,commonID
+                     ,'OK. WELL'
+                     ,curWELL.KUST_ID
+                     ,curWELL.WELL_TECHPLACE  
+                     ,''
+                     ,''
+                     );
+         end if;       
+         
+         --commit;
+         
+         --check_cnt := 0;
+      end if;-- проверка на те техместо  
+     
+      commit;
+      
+      null;
+  end loop;  
+
+end;
+$$
+LANGUAGE 'plpgsql';
+
+ALTER PROCEDURE public.getkustwell(varchar)
+  OWNER TO postgres;
